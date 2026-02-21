@@ -14,13 +14,14 @@
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
 
-  .header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 1.5rem 2rem; }
+  .header { background: var(--bg); border-bottom: 1px solid rgba(0,0,0,0.08); padding: 1.5rem 2rem; }
   .header h1 { font-size: 1.4rem; font-weight: 700; cursor: pointer; }
   .header h1:hover { text-decoration: underline; text-decoration-thickness: 2px; }
 
-  .controls { background: var(--surface); border-bottom: 1px solid var(--border); padding: 1rem 2rem; display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; }
-  .search-box { flex: 1; min-width: 200px; padding: 0.5rem 0.75rem; border: 1px solid var(--border); border-radius: 6px; font-size: 0.9rem; outline: none; }
-  .search-box:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-bg); }
+  .controls { background: var(--bg); border-bottom: 1px solid rgba(0,0,0,0.08); padding: 1rem 2rem; display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; }
+  .search-box { flex: 1; min-width: 200px; padding: 0.5rem 0.75rem; border: 1px solid rgba(0,0,0,0.18); border-radius: 6px; font-size: 0.9rem; outline: none; background: var(--bg); color: var(--text); }
+  .search-box::placeholder { color: rgba(0,0,0,0.55); }
+  .search-box:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-bg); background: var(--bg); }
 
   .stats { padding: 0.75rem 2rem; font-size: 0.8rem; color: var(--text2); background: var(--bg); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; }
 
@@ -71,7 +72,7 @@
 
 <div class="controls">
   <input type="text" class="search-box" id="searchInput" placeholder="검색어 입력 (제목, 내용, 인물, 조직...)">
-  <select id="sortSelect" style="padding:0.5rem 0.5rem;border:1px solid var(--border);border-radius:6px;font-size:0.8rem;background:var(--surface);color:var(--text2);cursor:pointer;">
+  <select id="sortSelect" style="padding:0.5rem 0.5rem;border:1px solid rgba(0,0,0,0.18);border-radius:6px;font-size:0.8rem;background:var(--bg);color:var(--text);cursor:pointer;">
     <option value="newest">최신순</option>
     <option value="oldest">과거순</option>
     <option value="relevance">관련도순</option>
