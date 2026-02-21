@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SlowLetter Entity Explorer</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<style>
+  :root {
+    --bg: #fafaf9; --surface: #ffffff; --border: #e7e5e4;
+    --text: #1c1917; --text2: #57534e; --accent: #0369a1;
+    --accent-bg: #e0f2fe; --tag-person: #fecdd3; --tag-org: #bbf7d0;
+    --tag-location: #bfdbfe; --tag-event: #fde68a; --tag-concept: #e9d5ff;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+
+  .header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 1.5rem 2rem; }
+  .header h1 { font-size: 1.4rem; font-weight: 700; }
+  .header p { font-size: 0.85rem; color: var(--text2); margin-top: 0.25rem; }
+
+  .controls { background: var(--surface); border-bottom: 1px solid var(--border); padding: 1rem 2rem; display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; }
+  .search-box { flex: 1; min-width: 200px; padding: 0.5rem 0.75rem; border: 1px solid var(--border); border-radius: 6px; font-size: 0.9rem; outline: none; }
+  .search-box:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-bg); }
+  .date-input { padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 0.85rem; }
+
+  .filter-chips { display: flex; flex-wrap: wrap; gap: 0.5rem; padding: 0.5rem 2rem; background: var(--surface); border-bottom: 1px solid var(--border); }
+  .chip { padding: 0.3rem 0.7rem; border-radius: 20px; font-size: 0.8rem; cursor: pointer; border: 1px solid var(--border); background: var(--surface); transition: all 0.15s; user-select: none; }
+  .chip:hover { background: #f5f5f4; }
+  .chip.active { border-color: var(--accent); background: var(--accent-bg); color: var(--accent); font-weight: 600; }
+  .chip-all { background: #f5f5f4; }
+
+  .stats { padding: 0.75rem 2rem; font-size: 0.8rem; color: var(--text2); background: var(--bg); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; }
+
+  .content { max-width: 900px; margin: 0 auto; padding: 1rem 2rem 3rem; }
+
+  .article { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem; margin-bottom: 0.75rem; transition: box-shadow 0.15s; }
+  .article:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+  .article-date { font-size: 0.75rem; color: var(--text2); margin-bottom: 0.25rem; }
+  .article-title { font-size: 1rem; font-weight: 600; margin-bottom: 0.5rem; }
+  .article-id { font-size: 0.7rem; color: #a8a29e; }
+  .article-snippet { font-size: 0.85rem; color: var(--text2); margin-bottom: 0.75rem; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .article-snippet.expanded { -webkit-line-clamp: unset; }
+  .expand-btn { font-size: 0.75rem; color: var(--accent); cursor: pointer; border: none; background: none; padding: 0; margin-bottom: 0.5rem; }
+
+  .tags { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+  .tag { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 12px; font-size: 0.7rem; cursor: pointer; }
+  .tag:hover { opacity: 0.8; filter: brightness(0.95); }
+  .tag-person { background: var(--tag-person); }
+  .tag-org { background: var(--tag-org); }
+  .tag-location { background: var(--tag-location); }
+  .tag-event { background: var(--tag-event); }
+  .tag-concept { background: var(--tag-concept); }
+
+  .pagination { display: flex; justify-content: center; gap: 0.5rem; margin-top: 1.5rem; flex-wrap: wrap; }
+  .page-btn { padding: 0.4rem 0.8rem; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); cursor: pointer; font-size: 0.85rem; }
+  .page-btn:hover { background: #f5f5f4; }
+  .page-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
+  .page-btn:disabled { opacity: 0.4; cursor: default; }
+
+  .loading { text-align: center; padding: 4rem 2rem; }
+  .loading-spinner { display: inline-block; width: 32px; height: 32px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-text { margin-top: 1rem; color: var(--text2); font-size: 0.9rem; }
+  .progress-bar { width: 200px; height: 4px; background: var(--border); border-radius: 2px; margin: 0.75rem auto 0; overflow: hidden; }
+  .progress-fill { height: 100%; background: var(--accent); transition: width 0.3s; border-radius: 2px; }
+
+  .entity-summary { padding: 0.5rem 2rem 0; display: flex; flex-wrap: wrap; gap: 1rem; font-size: 0.8rem; color: var(--text2); }
+  .entity-count { display: flex; align-items: center; gap: 0.3rem; }
+  .entity-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+
+  @media (max-width: 640px) {
+    .controls { padding: 0.75rem 1rem; }
+    .filter-chips { padding: 0.5rem 1rem; }
+    .content { padding: 0.75rem 1rem 3rem; }
+    .stats { padding: 0.5rem 1rem; }
+    .entity-summary { padding: 0.5rem 1rem 0; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>SlowLetter Entity Explorer</h1>
+  <p>슬로우레터 뉴스 코멘터리 엔티티 검색</p>
+</div>
+
+<div class="controls">
+  <input type="text" class="search-box" id="searchInput" placeholder="검색어 입력 (제목, 내용, 엔티티...)">
+  <input type="date" class="date-input" id="dateFrom" title="시작일">
+  <span style="color:#a8a29e">~</span>
+  <input type="date" class="date-input" id="dateTo" title="종료일">
+</div>
+
+<div class="filter-chips" id="filterChips">
+  <span class="chip chip-all active" data-type="all">전체</span>
+  <span class="chip" data-type="person">인물</span>
+  <span class="chip" data-type="org">조직</span>
+  <span class="chip" data-type="location">장소</span>
+  <span class="chip" data-type="event">사건</span>
+  <span class="chip" data-type="concept">개념</span>
+</div>
+
+<div class="entity-summary" id="entitySummary"></div>
+
+<div class="stats" id="stats">
+  <span>데이터 로딩 중...</span>
+</div>
+
+<div class="content" id="content">
+  <div class="loading" id="loading">
+    <div class="loading-spinner"></div>
+    <div class="loading-text">데이터를 불러오는 중...</div>
+    <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+  </div>
+</div>
+
+<script>
+const PER_PAGE = 30;
+let allData = [];
+let filtered = [];
+let currentPage = 1;
+let activeType = 'all';
+let searchDebounce = null;
+
+// Entity type mapping
+const TYPE_MAP = {
+  person: { col: 'solar_persons', label: '인물', cls: 'tag-person', color: '#fecdd3' },
+  org: { col: 'solar_organizations', label: '조직', cls: 'tag-org', color: '#bbf7d0' },
+  location: { col: 'solar_locations', label: '장소', cls: 'tag-location', color: '#bfdbfe' },
+  event: { col: 'solar_events', label: '사건', cls: 'tag-event', color: '#fde68a' },
+  concept: { col: 'solar_concepts', label: '개념', cls: 'tag-concept', color: '#e9d5ff' }
+};
+
+// Parse entities from semicolon-separated string
+function parseEntities(str) {
+  if (!str || str.trim() === '') return [];
+  return str.split(';').map(s => s.trim()).filter(s => s.length > 0);
+}
+
+// Load CSV
+function loadData() {
+  const csvPath = 'data/raw/slowletter_solar_entities.csv';
+  let rowCount = 0;
+
+  Papa.parse(csvPath, {
+    download: true,
+    header: true,
+    skipEmptyLines: true,
+    chunk: function(results) {
+      for (const row of results.data) {
+        if (!row.title || !row.date) continue;
+        const item = {
+          id: row.ID || '',
+          date: row.date ? row.date.substring(0, 10) : '',
+          title: row.title || '',
+          content: row.cleaned_content_for_service || '',
+          persons: parseEntities(row.solar_persons),
+          orgs: parseEntities(row.solar_organizations),
+          locations: parseEntities(row.solar_locations),
+          events: parseEntities(row.solar_events),
+          concepts: parseEntities(row.solar_concepts),
+          totalEntities: parseInt(row.total_entities) || 0
+        };
+        // Build search text
+        item._search = (item.title + ' ' + item.content + ' ' +
+          item.persons.join(' ') + ' ' + item.orgs.join(' ') + ' ' +
+          item.locations.join(' ') + ' ' + item.events.join(' ') + ' ' +
+          item.concepts.join(' ')).toLowerCase();
+        allData.push(item);
+      }
+      rowCount += results.data.length;
+      const pct = Math.min(95, Math.round(rowCount / 180));
+      document.getElementById('progressFill').style.width = pct + '%';
+    },
+    complete: function() {
+      document.getElementById('progressFill').style.width = '100%';
+      // Sort by date descending
+      allData.sort((a, b) => b.date.localeCompare(a.date));
+      // Set date range
+      if (allData.length > 0) {
+        document.getElementById('dateFrom').value = allData[allData.length - 1].date;
+        document.getElementById('dateTo').value = allData[0].date;
+      }
+      applyFilters();
+      showEntitySummary();
+      document.getElementById('loading').style.display = 'none';
+    },
+    error: function(err) {
+      document.getElementById('loading').innerHTML =
+        '<div style="color:#dc2626">CSV 파일을 불러올 수 없습니다.<br><small>' + err.message + '</small></div>';
+    }
+  });
+}
+
+function showEntitySummary() {
+  let counts = { person: 0, org: 0, location: 0, event: 0, concept: 0 };
+  for (const item of allData) {
+    counts.person += item.persons.length;
+    counts.org += item.orgs.length;
+    counts.location += item.locations.length;
+    counts.event += item.events.length;
+    counts.concept += item.concepts.length;
+  }
+  const el = document.getElementById('entitySummary');
+  el.innerHTML = Object.entries(TYPE_MAP).map(([key, info]) =>
+    `<span class="entity-count"><span class="entity-dot" style="background:${info.color}"></span>${info.label}: ${counts[key].toLocaleString()}개</span>`
+  ).join('');
+}
+
+function applyFilters() {
+  const query = document.getElementById('searchInput').value.toLowerCase().trim();
+  const dateFrom = document.getElementById('dateFrom').value;
+  const dateTo = document.getElementById('dateTo').value;
+
+  filtered = allData.filter(item => {
+    // Date filter
+    if (dateFrom && item.date < dateFrom) return false;
+    if (dateTo && item.date > dateTo) return false;
+
+    // Entity type filter
+    if (activeType !== 'all') {
+      const map = { person: 'persons', org: 'orgs', location: 'locations', event: 'events', concept: 'concepts' };
+      if (item[map[activeType]].length === 0) return false;
+    }
+
+    // Search filter
+    if (query && !item._search.includes(query)) return false;
+
+    return true;
+  });
+
+  currentPage = 1;
+  render();
+}
+
+function render() {
+  const totalPages = Math.ceil(filtered.length / PER_PAGE);
+  const start = (currentPage - 1) * PER_PAGE;
+  const pageItems = filtered.slice(start, start + PER_PAGE);
+
+  // Stats
+  document.getElementById('stats').innerHTML =
+    `<span>${filtered.length.toLocaleString()}건 (전체 ${allData.length.toLocaleString()}건)</span>
+     <span>페이지 ${currentPage} / ${Math.max(1, totalPages)}</span>`;
+
+  // Content
+  const contentEl = document.getElementById('content');
+  if (pageItems.length === 0) {
+    contentEl.innerHTML = '<div style="text-align:center;padding:3rem;color:#a8a29e">검색 결과가 없습니다</div>';
+    return;
+  }
+
+  let html = '';
+  for (const item of pageItems) {
+    html += `<div class="article">
+      <div class="article-date">${item.date} <span class="article-id">${item.id}</span></div>
+      <div class="article-title">${escapeHtml(item.title)}</div>
+      <div class="article-snippet" id="snippet-${item.id}">${escapeHtml(item.content)}</div>
+      ${item.content.length > 150 ? `<button class="expand-btn" onclick="toggleSnippet('${item.id}')">더보기</button>` : ''}
+      <div class="tags">
+        ${renderTags(item.persons, 'person')}
+        ${renderTags(item.orgs, 'org')}
+        ${renderTags(item.locations, 'location')}
+        ${renderTags(item.events, 'event')}
+        ${renderTags(item.concepts, 'concept')}
+      </div>
+    </div>`;
+  }
+
+  // Pagination
+  html += '<div class="pagination">';
+  html += `<button class="page-btn" onclick="goPage(1)" ${currentPage === 1 ? 'disabled' : ''}>&laquo;</button>`;
+  html += `<button class="page-btn" onclick="goPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>&lsaquo;</button>`;
+
+  const maxVisible = 5;
+  let pStart = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+  let pEnd = Math.min(totalPages, pStart + maxVisible - 1);
+  if (pEnd - pStart < maxVisible - 1) pStart = Math.max(1, pEnd - maxVisible + 1);
+
+  for (let i = pStart; i <= pEnd; i++) {
+    html += `<button class="page-btn ${i === currentPage ? 'active' : ''}" onclick="goPage(${i})">${i}</button>`;
+  }
+
+  html += `<button class="page-btn" onclick="goPage(${currentPage + 1})" ${currentPage >= totalPages ? 'disabled' : ''}>&rsaquo;</button>`;
+  html += `<button class="page-btn" onclick="goPage(${totalPages})" ${currentPage >= totalPages ? 'disabled' : ''}>&raquo;</button>`;
+  html += '</div>';
+
+  contentEl.innerHTML = html;
+}
+
+function renderTags(entities, type) {
+  const info = TYPE_MAP[type];
+  return entities.map(e =>
+    `<span class="tag ${info.cls}" onclick="searchEntity('${escapeAttr(e)}')" title="${info.label}: ${escapeAttr(e)}">${escapeHtml(e)}</span>`
+  ).join('');
+}
+
+function escapeHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function escapeAttr(s) {
+  return s.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+}
+
+function toggleSnippet(id) {
+  const el = document.getElementById('snippet-' + id);
+  if (el) {
+    el.classList.toggle('expanded');
+    const btn = el.nextElementSibling;
+    if (btn) btn.textContent = el.classList.contains('expanded') ? '접기' : '더보기';
+  }
+}
+
+function searchEntity(name) {
+  document.getElementById('searchInput').value = name;
+  applyFilters();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function goPage(n) {
+  const totalPages = Math.ceil(filtered.length / PER_PAGE);
+  currentPage = Math.max(1, Math.min(n, totalPages));
+  render();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// Event listeners
+document.getElementById('searchInput').addEventListener('input', () => {
+  clearTimeout(searchDebounce);
+  searchDebounce = setTimeout(applyFilters, 300);
+});
+document.getElementById('dateFrom').addEventListener('change', applyFilters);
+document.getElementById('dateTo').addEventListener('change', applyFilters);
+
+document.getElementById('filterChips').addEventListener('click', (e) => {
+  const chip = e.target.closest('.chip');
+  if (!chip) return;
+  document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+  chip.classList.add('active');
+  activeType = chip.dataset.type;
+  applyFilters();
+});
+
+// Keyboard shortcut
+document.addEventListener('keydown', (e) => {
+  if (e.key === '/' && document.activeElement.tagName !== 'INPUT') {
+    e.preventDefault();
+    document.getElementById('searchInput').focus();
+  }
+});
+
+// Start
+loadData();
+</script>
+</body>
+</html>
