@@ -245,11 +245,16 @@ function render() {
 }
 
 function formatContent(text) {
-  // Content has • bullets, <br> tags, and [text](url) markdown links
-  // 1) Extract <br> and markdown links, escape the rest
-  let safe = text.replace(/<br>/g, '%%BR%%');
-  // Extract markdown links
+  // Content has • bullets, <br> tags, HTML links <a href>, and [text](url) markdown links
+  // 1) Extract <br>, HTML links, and markdown links before escaping
+  let safe = text.replace(/<br\s*\/?>/g, '%%BR%%');
   const links = [];
+  // Extract HTML <a> tags
+  safe = safe.replace(/<a\s+href="(https?:\/\/[^"]+)"[^>]*>([^<]*)<\/a>/g, (m, url, label) => {
+    links.push({label, url});
+    return '%%LINK' + (links.length - 1) + '%%';
+  });
+  // Extract markdown [text](url) links
   safe = safe.replace(/\[([^\]]*)\]\((https?:\/\/[^)]+)\)/g, (m, label, url) => {
     links.push({label, url});
     return '%%LINK' + (links.length - 1) + '%%';
