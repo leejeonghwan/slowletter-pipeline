@@ -199,24 +199,13 @@ function render() {
 }
 
 function formatContent(text) {
-  // Content now has • bullets, \n line breaks, and <a href> links
-  // Escape HTML except for our trusted <a> tags
-  // 1) Extract <a> tags, replace with placeholders
-  const links = [];
-  let safe = text.replace(/<a\s+href="([^"]*)">(.*?)<\/a>/g, (m, href, label) => {
-    links.push({href, label});
-    return `%%LINK${links.length - 1}%%`;
-  });
-  // 2) Escape remaining HTML
-  const d = document.createElement('div');
-  d.textContent = safe;
-  safe = d.innerHTML;
-  // 3) Restore links
-  safe = safe.replace(/%%LINK(\d+)%%/g, (m, i) => {
-    const l = links[parseInt(i)];
-    return `<a href="${l.href}" target="_blank" rel="noopener">${escapeHtml(l.label)}</a>`;
-  });
-  // 4) Line breaks
+  // Content has • bullets, \n line breaks, and [text](url) markdown links
+  // 1) Escape HTML
+  let safe = escapeHtml(text);
+  // 2) Convert markdown links [text](url) to <a> tags
+  safe = safe.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g,
+    '<a href="$2" target="_blank" rel="noopener">$1</a>');
+  // 3) Line breaks
   safe = safe.replace(/\n/g, '<br>');
   return safe;
 }
