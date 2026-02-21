@@ -185,7 +185,10 @@ function applyFilters() {
   const sortMode = document.getElementById('sortSelect').value;
 
   filtered = allData.filter(item => {
-    if (selectedDate && item.date !== selectedDate) return false;
+    // 날짜 모드 + 키워드 검색을 섞지 않는다.
+    // - query가 있으면 전체 DB 대상으로 검색 (날짜 필터 해제 효과)
+    // - query가 없을 때만 selectedDate 필터 적용
+    if (!query && selectedDate && item.date !== selectedDate) return false;
     if (query && !item._search.includes(query)) return false;
     return true;
   });
@@ -215,7 +218,7 @@ function render() {
   const pageItems = filtered.slice(start, start + PER_PAGE);
 
   document.getElementById('statsInner').innerHTML =
-    `<span>전체 ${allData.length.toLocaleString()}건 가운데 ${filtered.length.toLocaleString()}건.${selectedDate ? ' (날짜: ' + selectedDate + ')' : ''}</span>
+    `<span>전체 ${allData.length.toLocaleString()}건 가운데 ${filtered.length.toLocaleString()}건.${(!query && selectedDate) ? ' (날짜: ' + selectedDate + ')' : ''}</span>
      <span>${currentPage} / ${Math.max(1, totalPages)}</span>`;
 
   const contentEl = document.getElementById('content');
@@ -355,7 +358,15 @@ function filterDate(dateStr) {
 // Event listeners
 document.getElementById('searchInput').addEventListener('input', () => {
   clearTimeout(searchDebounce);
-  searchDebounce = setTimeout(applyFilters, 300);
+  searchDebounce = setTimeout(() => {
+    const q = document.getElementById('searchInput').value.toLowerCase().trim();
+    if (q) {
+      // 키워드를 새로 입력하면 날짜 모드를 자동 해제하고 전체 검색으로 전환
+      selectedDate = null;
+      document.getElementById('searchInput').placeholder = DEFAULT_SEARCH_PLACEHOLDER;
+    }
+    applyFilters();
+  }, 300);
 });
 
 document.getElementById('sortSelect').addEventListener('change', applyFilters);
