@@ -301,7 +301,13 @@ function escapeAttr(s) {
 // (더보기 기능 제거)
 
 function searchEntity(name) {
-  document.getElementById('searchInput').value = name;
+  // 키워드(태그) 클릭 → 날짜 모드 해제하고 키워드 검색으로 전환
+  selectedDate = null;
+  const searchInput = document.getElementById('searchInput');
+  if (searchInput) {
+    searchInput.value = name;
+    searchInput.placeholder = DEFAULT_SEARCH_PLACEHOLDER;
+  }
   applyFilters();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -330,14 +336,13 @@ const DEFAULT_SEARCH_PLACEHOLDER = '검색어 입력 (제목, 내용, 인물, �
 
 function filterDate(dateStr) {
   // 날짜 클릭 → 검색은 초기화하고, 해당 날짜만 모아서 보여주기
-  // same date clicked again → toggle off
-  selectedDate = (selectedDate === dateStr) ? null : dateStr;
+  selectedDate = dateStr;
 
   const searchInput = document.getElementById('searchInput');
   const sortSelect = document.getElementById('sortSelect');
   if (searchInput) {
     searchInput.value = '';
-    searchInput.placeholder = selectedDate ? `날짜 필터: ${selectedDate} (다시 클릭하면 해제)` : DEFAULT_SEARCH_PLACEHOLDER;
+    searchInput.placeholder = `날짜: ${selectedDate}`;
   }
   if (sortSelect) sortSelect.value = 'newest';
 
