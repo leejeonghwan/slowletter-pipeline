@@ -24,6 +24,7 @@
 from __future__ import annotations
 
 import os
+import re
 import pandas as pd
 
 
@@ -38,13 +39,33 @@ def _normalize_content(value) -> str:
     if value is None:
         return ""
     s = str(value)
-    # cleaned_content_for_service는 기본적으로 줄바꿈 기반("• ...\n")
-    # 웹 CSV는 <br> 기반으로 맞춰둔다.
-    s = s.replace("\r\n", "\n").replace("\r", "\n")
-    s = s.strip()
+
+    # cleaned_content_for_service는 불렛/링크 포함 텍스트이며, 줄바꿈이 있을 수도/없을 수도 있습니다.
+    # 웹 CSV는 <br> 기반으로 통일합니다.
+    s = s.replace("\r\n", "\n").replace("\r", "\n").strip()
     if not s:
         return ""
-    return "<br> ".join([line.strip() for line in s.split("\n") if line.strip()])
+
+    # 1) 줄바꿈은 <br>로
+    s = s.replace("\n", "<br> ")
+
+    # 2) 줄 시작 불렛("<br>   •")은 먼저 정규화
+    s = re.sub(r"<br>\s+•", "<br> •", s)
+
+    # 3) 중간에 " ... • ..." 형태로 불렛이 붙어버린 케이스를 줄바꿈으로 교정
+    #    단, 이미 줄 시작 불렛(<br> •)인 경우는 건드리지 않도록 보호 토큰 사용
+    s = s.replace("<br> •", "%%BR_BULLET%%")
+    s = s.replace(" • ", "<br> • ")
+    s = s.replace("%%BR_BULLET%%", "<br> •")
+
+    # 4) 연속 <br> 정리
+    while "<br> <br>" in s:
+        s = s.replace("<br> <br>", "<br> ")
+
+    # 5) 정리 과정에서 다시 생길 수 있는 공백 재정규화
+    s = re.sub(r"<br>\s+•", "<br> •", s)
+
+    return s
 
 
 def main():
