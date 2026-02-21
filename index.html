@@ -217,6 +217,7 @@ function render() {
   const totalPages = Math.ceil(filtered.length / PER_PAGE);
   const start = (currentPage - 1) * PER_PAGE;
   const pageItems = filtered.slice(start, start + PER_PAGE);
+  const query = document.getElementById('searchInput').value.toLowerCase().trim();
 
   document.getElementById('statsInner').innerHTML =
     `<span>전체 ${allData.length.toLocaleString()}건 가운데 ${filtered.length.toLocaleString()}건.${(!query && selectedDate) ? ' (날짜: ' + selectedDate + ')' : ''}</span>
