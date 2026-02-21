@@ -1,8 +1,10 @@
-data/*.csv
+data/processed/
 data/logs/
 __pycache__/
 *.pyc
 .venv/
+.env
 .DS_Store
 .vscode/
 .idea/
+logs/
