@@ -70,6 +70,11 @@
 
 <div class="controls">
   <input type="text" class="search-box" id="searchInput" placeholder="검색어 입력 (제목, 내용, 인물, 조직...)">
+  <select id="sortSelect" style="padding:0.5rem 0.5rem;border:1px solid var(--border);border-radius:6px;font-size:0.8rem;background:var(--surface);color:var(--text2);cursor:pointer;">
+    <option value="newest">최신순</option>
+    <option value="oldest">과거순</option>
+    <option value="relevance">관련도순</option>
+  </select>
 </div>
 
 <div class="stats" id="stats">
@@ -153,13 +158,36 @@ function loadData(retryCount) {
   });
 }
 
+function countOccurrences(text, query) {
+  let count = 0;
+  let pos = 0;
+  while ((pos = text.indexOf(query, pos)) !== -1) { count++; pos += query.length; }
+  return count;
+}
+
 function applyFilters() {
   const query = document.getElementById('searchInput').value.toLowerCase().trim();
+  const sortMode = document.getElementById('sortSelect').value;
 
   filtered = allData.filter(item => {
     if (query && !item._search.includes(query)) return false;
     return true;
   });
+
+  if (sortMode === 'newest') {
+    filtered.sort((a, b) => b.date.localeCompare(a.date));
+  } else if (sortMode === 'oldest') {
+    filtered.sort((a, b) => a.date.localeCompare(b.date));
+  } else if (sortMode === 'relevance' && query) {
+    filtered.sort((a, b) => {
+      const aTitle = a.title.toLowerCase().includes(query) ? 10 : 0;
+      const bTitle = b.title.toLowerCase().includes(query) ? 10 : 0;
+      const aCount = countOccurrences(a._search, query);
+      const bCount = countOccurrences(b._search, query);
+      const diff = (bTitle + bCount) - (aTitle + aCount);
+      return diff !== 0 ? diff : b.date.localeCompare(a.date);
+    });
+  }
 
   currentPage = 1;
   render();
@@ -279,6 +307,8 @@ document.getElementById('searchInput').addEventListener('input', () => {
   clearTimeout(searchDebounce);
   searchDebounce = setTimeout(applyFilters, 300);
 });
+
+document.getElementById('sortSelect').addEventListener('change', applyFilters);
 
 document.addEventListener('keydown', (e) => {
   if (e.key === '/' && document.activeElement.tagName !== 'INPUT') {
