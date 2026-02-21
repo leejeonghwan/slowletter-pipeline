@@ -33,6 +33,8 @@
   .article { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem; margin-bottom: 0.75rem; transition: box-shadow 0.15s; }
   .article:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
   .article-date { font-size: 0.75rem; color: var(--text2); margin-bottom: 0.25rem; }
+  .article-date .date-link { color: inherit; text-decoration: none; cursor: pointer; background: transparent; border: none; padding: 0; font: inherit; }
+  .article-date .date-link:hover { text-decoration: underline; }
   .article-title { font-size: 1rem; font-weight: 600; margin-bottom: 0.5rem; }
   .article-snippet { font-size: 0.85rem; color: var(--text2); margin-bottom: 0.75rem; }
   .article-snippet a { color: var(--accent); text-decoration: none; }
@@ -105,6 +107,7 @@ let allData = [];
 let filtered = [];
 let currentPage = 1;
 let searchDebounce = null;
+let selectedDate = null;
 
 const TYPE_MAP = {
   person: { label: '인물', cls: 'tag-person' },
@@ -180,6 +183,7 @@ function applyFilters() {
   const sortMode = document.getElementById('sortSelect').value;
 
   filtered = allData.filter(item => {
+    if (selectedDate && item.date !== selectedDate) return false;
     if (query && !item._search.includes(query)) return false;
     return true;
   });
@@ -209,7 +213,7 @@ function render() {
   const pageItems = filtered.slice(start, start + PER_PAGE);
 
   document.getElementById('statsInner').innerHTML =
-    `<span>전체 ${allData.length.toLocaleString()}건 가운데 ${filtered.length.toLocaleString()}건.</span>
+    `<span>전체 ${allData.length.toLocaleString()}건 가운데 ${filtered.length.toLocaleString()}건.${selectedDate ? ' (날짜: ' + selectedDate + ')' : ''}</span>
      <span>${currentPage} / ${Math.max(1, totalPages)}</span>`;
 
   const contentEl = document.getElementById('content');
@@ -222,7 +226,7 @@ function render() {
   for (const item of pageItems) {
     const formattedContent = formatContent(item.content);
     html += `<div class="article">
-      <div class="article-date">${item.date}.</div>
+      <div class="article-date"><button class="date-link" onclick="filterDate('${item.date}')">${item.date}.</button></div>
       <div class="article-title">${escapeHtml(item.title)}</div>
       <div class="article-snippet" id="snippet-${item.id}">${formattedContent}</div>
       <div class="tags">
@@ -312,8 +316,16 @@ function goPage(n) {
 function resetToHome() {
   const searchInput = document.getElementById('searchInput');
   const sortSelect = document.getElementById('sortSelect');
+  selectedDate = null;
   if (searchInput) searchInput.value = '';
   if (sortSelect) sortSelect.value = 'newest';
+  applyFilters();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function filterDate(dateStr) {
+  // same date clicked again → toggle off
+  selectedDate = (selectedDate === dateStr) ? null : dateStr;
   applyFilters();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
