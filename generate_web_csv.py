@@ -58,11 +58,14 @@ def _normalize_content(value) -> str:
     s = s.replace(" • ", "<br> • ")
     s = s.replace("%%BR_BULLET%%", "<br> •")
 
-    # 4) 연속 <br> 정리
+    # 4) </a> 뒤에 공백이 사라지는 케이스 보정 ("</a>다음문장" → "</a> 다음문장")
+    s = re.sub(r"</a>(?=[^\s<])", "</a> ", s)
+
+    # 5) 연속 <br> 정리
     while "<br> <br>" in s:
         s = s.replace("<br> <br>", "<br> ")
 
-    # 5) 정리 과정에서 다시 생길 수 있는 공백 재정규화
+    # 6) 정리 과정에서 다시 생길 수 있는 공백 재정규화
     s = re.sub(r"<br>\s+•", "<br> •", s)
 
     return s
