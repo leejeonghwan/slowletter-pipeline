@@ -79,7 +79,7 @@
 
 <div class="controls">
   <div class="controls-inner">
-    <input type="text" class="search-box" id="searchInput" placeholder="검색어 입력 (제목, 내용, 인물, 조직...)">
+    <input type="text" class="search-box" id="searchInput" placeholder="">
     <select id="sortSelect" style="padding:0.6rem 0.6rem;border:1px solid rgba(0,0,0,0.18);border-radius:6px;font-size:0.85rem;background:#ffffff;color:var(--text);cursor:pointer;">
       <option value="newest">최신순</option>
       <option value="oldest">과거순</option>
@@ -333,7 +333,7 @@ function resetToHome() {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-const DEFAULT_SEARCH_PLACEHOLDER = '검색어 입력 (제목, 내용, 인물, 조직...)';
+const DEFAULT_SEARCH_PLACEHOLDER = '';
 
 function filterDate(dateStr) {
   // 날짜 클릭 → 검색은 초기화하고, 해당 날짜만 모아서 보여주기
