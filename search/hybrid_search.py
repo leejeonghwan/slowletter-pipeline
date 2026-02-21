@@ -41,15 +41,22 @@ class HybridSearchEngine:
             date_start=date_start, date_end=date_end
         )
 
-        # 2. 벡터 검색
-        query_embedding = self.embedder.embed_query(query)
-        vector_results = self.vector_store.search(
-            query_vector=query_embedding,
-            top_k=initial_k,
-            date_start=date_start,
-            date_end=date_end,
-            entity_filter=entity_filter,
-        )
+        # 2. 벡터 검색 (OPENAI_API_KEY 미설정/오류 시 BM25-only로 폴백)
+        vector_results = []
+        if self.embedder is not None and self.vector_store is not None:
+            try:
+                query_embedding = self.embedder.embed_query(query)
+                vector_results = self.vector_store.search(
+                    query_vector=query_embedding,
+                    top_k=initial_k,
+                    date_start=date_start,
+                    date_end=date_end,
+                    entity_filter=entity_filter,
+                )
+            except Exception as e:
+                # 벡터 검색 실패 시에도 BM25 결과는 반환한다.
+                # (예: OPENAI_API_KEY placeholder/미설정, 네트워크 오류 등)
+                vector_results = []
 
         # 3. RRF 점수 계산
         rrf_scores = {}

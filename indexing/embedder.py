@@ -39,6 +39,15 @@ class SlowLetterEmbedder:
         model: str = "text-embedding-3-large",
         dim: int = 3072,
     ):
+        # OPENAI_API_KEY가 비어있거나 placeholder(한글 등)인 경우, 클라이언트가
+        # Authorization 헤더 구성 과정에서 UnicodeEncodeError를 낼 수 있다.
+        if not openai_api_key or not str(openai_api_key).strip():
+            raise ValueError("OPENAI_API_KEY is missing")
+        try:
+            str(openai_api_key).encode("ascii")
+        except UnicodeEncodeError:
+            raise ValueError("OPENAI_API_KEY must be ASCII (looks like a placeholder)")
+
         self.client = OpenAI(api_key=openai_api_key)
         self.model = model
         self.dim = dim

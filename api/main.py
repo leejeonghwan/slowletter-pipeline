@@ -50,10 +50,17 @@ async def lifespan(app: FastAPI):
     bm25.load(str(BM25_INDEX))
     print(f"  BM25 loaded: {BM25_INDEX}")
 
-    # 3. Vector Store
-    embedder = SlowLetterEmbedder(OPENAI_API_KEY)
+    # 3. Vector Store / Embedder
     vector_store = VectorStore(str(VECTOR_INDEX_DIR))
     print(f"  VectorStore loaded: {VECTOR_INDEX_DIR}")
+
+    embedder = None
+    try:
+        embedder = SlowLetterEmbedder(OPENAI_API_KEY)
+    except Exception as e:
+        # OPENAI_API_KEY 미설정/placeholder/오류인 경우에도 서버는 뜨게 하고
+        # BM25-only 검색으로 폴백한다.
+        print(f"  Embedder disabled: {e}")
 
     # 4. Hybrid Search
     hybrid_search = HybridSearchEngine(bm25, vector_store, embedder)
