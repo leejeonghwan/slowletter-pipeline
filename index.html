@@ -317,15 +317,30 @@ function resetToHome() {
   const searchInput = document.getElementById('searchInput');
   const sortSelect = document.getElementById('sortSelect');
   selectedDate = null;
-  if (searchInput) searchInput.value = '';
+  if (searchInput) {
+    searchInput.value = '';
+    searchInput.placeholder = DEFAULT_SEARCH_PLACEHOLDER;
+  }
   if (sortSelect) sortSelect.value = 'newest';
   applyFilters();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
+const DEFAULT_SEARCH_PLACEHOLDER = '검색어 입력 (제목, 내용, 인물, 조직...)';
+
 function filterDate(dateStr) {
+  // 날짜 클릭 → 검색은 초기화하고, 해당 날짜만 모아서 보여주기
   // same date clicked again → toggle off
   selectedDate = (selectedDate === dateStr) ? null : dateStr;
+
+  const searchInput = document.getElementById('searchInput');
+  const sortSelect = document.getElementById('sortSelect');
+  if (searchInput) {
+    searchInput.value = '';
+    searchInput.placeholder = selectedDate ? `날짜 필터: ${selectedDate} (다시 클릭하면 해제)` : DEFAULT_SEARCH_PLACEHOLDER;
+  }
+  if (sortSelect) sortSelect.value = 'newest';
+
   applyFilters();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
