@@ -9,7 +9,7 @@
   :root {
     --bg: #fdad00; --surface: #ffffff; --border: #e7e5e4;
     --text: #1c1917; --text2: #57534e; --accent: #0369a1;
-    --accent-bg: #e0f2fe; --tag-person: #fecdd3; --tag-org: #bbf7d0;
+    --accent-bg: #e0f2fe; --tag-person: #fdad00; --tag-org: #bbf7d0;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
@@ -27,17 +27,15 @@
 
   .stats { padding: 0.75rem 2rem; font-size: 0.8rem; color: var(--text2); background: var(--bg); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; }
 
-  .content { max-width: 900px; padding: 1rem 2rem 3rem; }
+  .content { max-width: 900px; margin: 0 auto; padding: 1rem 2rem 3rem; }
 
   .article { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem; margin-bottom: 0.75rem; transition: box-shadow 0.15s; }
   .article:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
   .article-date { font-size: 0.75rem; color: var(--text2); margin-bottom: 0.25rem; }
   .article-title { font-size: 1rem; font-weight: 600; margin-bottom: 0.5rem; }
-  .article-snippet { font-size: 0.85rem; color: var(--text2); margin-bottom: 0.75rem; display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden; }
+  .article-snippet { font-size: 0.85rem; color: var(--text2); margin-bottom: 0.75rem; }
   .article-snippet a { color: var(--accent); text-decoration: none; }
   .article-snippet a:hover { text-decoration: underline; }
-  .article-snippet.expanded { -webkit-line-clamp: unset; }
-  .expand-btn { font-size: 0.75rem; color: var(--accent); cursor: pointer; border: none; background: none; padding: 0; margin-bottom: 0.5rem; }
 
   .tags { display: flex; flex-wrap: wrap; gap: 0.35rem; }
   .tag { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 12px; font-size: 0.7rem; cursor: pointer; }
@@ -221,10 +219,9 @@ function render() {
   for (const item of pageItems) {
     const formattedContent = formatContent(item.content);
     html += `<div class="article">
-      <div class="article-date">${item.date}</div>
+      <div class="article-date">${item.date}.</div>
       <div class="article-title">${escapeHtml(item.title)}</div>
       <div class="article-snippet" id="snippet-${item.id}">${formattedContent}</div>
-      ${item.content.length > 150 ? `<button class="expand-btn" onclick="toggleSnippet('${item.id}')">더보기</button>` : ''}
       <div class="tags">
         ${renderTags(item.persons, 'person')}
         ${renderTags(item.orgs, 'org')}
@@ -294,14 +291,7 @@ function escapeAttr(s) {
   return s.replace(/'/g, "\\'").replace(/"/g, '&quot;');
 }
 
-function toggleSnippet(id) {
-  const el = document.getElementById('snippet-' + id);
-  if (el) {
-    el.classList.toggle('expanded');
-    const btn = el.nextElementSibling;
-    if (btn) btn.textContent = el.classList.contains('expanded') ? '접기' : '더보기';
-  }
-}
+// (더보기 기능 제거)
 
 function searchEntity(name) {
   document.getElementById('searchInput').value = name;
