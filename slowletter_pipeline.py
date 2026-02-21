@@ -683,8 +683,16 @@ def main():
     else:
         step2_entities(archive_df, log)
 
-    elapsed = time.time() - start_time
-    log.info(f"✅ 파이프라인 완료 (소요: {elapsed:.0f}초)")
+    elapsed = int(time.time() - start_time)
+    log.info(f"✅ 파이프라인 완료 (소요: {elapsed}초)")
+
+    send_telegram(
+        f"<b>슬로우레터 파이프라인 완료</b>
+"
+        f"아카이브: {len(archive_df)}건
+"
+        f"소요: {elapsed}초"
+    )
 
 
 if __name__ == "__main__":
