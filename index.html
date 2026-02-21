@@ -101,7 +101,8 @@ function parseEntities(str) {
   return str.split(';').map(s => s.trim()).filter(s => s.length > 0);
 }
 
-function loadData() {
+function loadData(retryCount) {
+  retryCount = retryCount || 0;
   const csvPath = 'data/raw/slowletter_web.csv';
   let rowCount = 0;
 
@@ -109,6 +110,7 @@ function loadData() {
     download: true,
     header: true,
     skipEmptyLines: true,
+    downloadRequestHeaders: {},
     chunk: function(results) {
       for (const row of results.data) {
         if (!row.title || !row.date) continue;
@@ -135,8 +137,18 @@ function loadData() {
       document.getElementById('loading').style.display = 'none';
     },
     error: function(err) {
-      document.getElementById('loading').innerHTML =
-        '<div style="color:#dc2626">CSV 파일을 불러올 수 없습니다.<br><small>' + err.message + '</small></div>';
+      if (retryCount < 2) {
+        allData = [];
+        document.getElementById('loading').innerHTML =
+          '<div class="loading"><div class="loading-spinner"></div><div class="loading-text">재시도 중... (' + (retryCount + 1) + '/2)</div><div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div></div>';
+        setTimeout(function() { loadData(retryCount + 1); }, 1500);
+      } else {
+        document.getElementById('loading').innerHTML =
+          '<div style="color:#dc2626;text-align:left;padding:2rem 0;">' +
+          'CSV 파일을 불러올 수 없습니다.<br>' +
+          '<small style="color:#a8a29e">네트워크 연결을 확인하고 페이지를 새로고침 해주세요.</small>' +
+          '<br><button onclick="location.reload()" style="margin-top:1rem;padding:0.4rem 1rem;border:1px solid #e7e5e4;border-radius:6px;background:#fff;cursor:pointer;font-size:0.85rem;">새로고침</button></div>';
+      }
     }
   });
 }
