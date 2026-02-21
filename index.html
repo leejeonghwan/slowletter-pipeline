@@ -29,7 +29,9 @@
   .article:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
   .article-date { font-size: 0.75rem; color: var(--text2); margin-bottom: 0.25rem; }
   .article-title { font-size: 1rem; font-weight: 600; margin-bottom: 0.5rem; }
-  .article-snippet { font-size: 0.85rem; color: var(--text2); margin-bottom: 0.75rem; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .article-snippet { font-size: 0.85rem; color: var(--text2); margin-bottom: 0.75rem; display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden; }
+  .article-snippet a { color: var(--accent); text-decoration: none; }
+  .article-snippet a:hover { text-decoration: underline; }
   .article-snippet.expanded { -webkit-line-clamp: unset; }
   .expand-btn { font-size: 0.75rem; color: var(--accent); cursor: pointer; border: none; background: none; padding: 0; margin-bottom: 0.5rem; }
 
@@ -196,12 +198,27 @@ function render() {
   contentEl.innerHTML = html;
 }
 
-// Try to restore some readability by splitting on sentence boundaries
 function formatContent(text) {
-  let escaped = escapeHtml(text);
-  // Preserve any existing newlines
-  escaped = escaped.replace(/\n/g, '<br>');
-  return escaped;
+  // Content now has • bullets, \n line breaks, and <a href> links
+  // Escape HTML except for our trusted <a> tags
+  // 1) Extract <a> tags, replace with placeholders
+  const links = [];
+  let safe = text.replace(/<a\s+href="([^"]*)">(.*?)<\/a>/g, (m, href, label) => {
+    links.push({href, label});
+    return `%%LINK${links.length - 1}%%`;
+  });
+  // 2) Escape remaining HTML
+  const d = document.createElement('div');
+  d.textContent = safe;
+  safe = d.innerHTML;
+  // 3) Restore links
+  safe = safe.replace(/%%LINK(\d+)%%/g, (m, i) => {
+    const l = links[parseInt(i)];
+    return `<a href="${l.href}" target="_blank" rel="noopener">${escapeHtml(l.label)}</a>`;
+  });
+  // 4) Line breaks
+  safe = safe.replace(/\n/g, '<br>');
+  return safe;
 }
 
 function renderTags(entities, type) {
