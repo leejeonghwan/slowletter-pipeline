@@ -105,6 +105,7 @@
 
 <script>
 const PER_PAGE = 30;
+const DEFAULT_SEARCH_PLACEHOLDER = '';
 let allData = [];
 let filtered = [];
 let currentPage = 1;
@@ -336,8 +337,6 @@ function resetToHome() {
   applyFilters();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
-
-const DEFAULT_SEARCH_PLACEHOLDER = '';
 
 function filterDate(dateStr) {
   // 날짜 클릭 → 검색은 초기화하고, 해당 날짜만 모아서 보여주기
