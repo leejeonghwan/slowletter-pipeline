@@ -16,7 +16,7 @@ import os
 
 # --- 경로 설정 (환경에 맞게 수정) ---
 ARCHIVE_CSV = os.path.expanduser("~/slowletter-pipeline/data/slowletter_data_archives.csv")
-ENTITIES_CSV = os.path.expanduser("~/Downloads/work/data/raw/slowletter_solar_entities.csv")
+ENTITIES_CSV = os.path.expanduser("~/slowletter-pipeline/data/raw/slowletter_solar_entities.csv")
 OUTPUT_CSV = ENTITIES_CSV  # 덮어쓰기 (백업 자동 생성)
 
 
