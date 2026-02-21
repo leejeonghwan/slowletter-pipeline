@@ -21,11 +21,6 @@
   .search-box { flex: 1; min-width: 200px; padding: 0.5rem 0.75rem; border: 1px solid var(--border); border-radius: 6px; font-size: 0.9rem; outline: none; }
   .search-box:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-bg); }
 
-  .filter-chips { display: flex; flex-wrap: wrap; gap: 0.5rem; padding: 0.5rem 2rem; background: var(--surface); border-bottom: 1px solid var(--border); }
-  .chip { padding: 0.3rem 0.7rem; border-radius: 20px; font-size: 0.8rem; cursor: pointer; border: 1px solid var(--border); background: var(--surface); transition: all 0.15s; user-select: none; }
-  .chip:hover { background: #f5f5f4; }
-  .chip.active { border-color: var(--accent); background: var(--accent-bg); color: var(--accent); font-weight: 600; }
-
   .stats { padding: 0.75rem 2rem; font-size: 0.8rem; color: var(--text2); background: var(--bg); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; }
 
   .content { max-width: 900px; padding: 1rem 2rem 3rem; }
@@ -57,16 +52,10 @@
   .progress-bar { width: 200px; height: 4px; background: var(--border); border-radius: 2px; margin: 0.75rem auto 0; overflow: hidden; }
   .progress-fill { height: 100%; background: var(--accent); transition: width 0.3s; border-radius: 2px; }
 
-  .entity-summary { padding: 0.5rem 2rem 0; display: flex; flex-wrap: wrap; gap: 1rem; font-size: 0.8rem; color: var(--text2); }
-  .entity-count { display: flex; align-items: center; gap: 0.3rem; }
-  .entity-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
-
   @media (max-width: 640px) {
     .controls { padding: 0.75rem 1rem; }
-    .filter-chips { padding: 0.5rem 1rem; }
     .content { padding: 0.75rem 1rem 3rem; }
     .stats { padding: 0.5rem 1rem; }
-    .entity-summary { padding: 0.5rem 1rem 0; }
     .header { padding: 1.2rem 1rem; }
   }
 </style>
@@ -80,14 +69,6 @@
 <div class="controls">
   <input type="text" class="search-box" id="searchInput" placeholder="검색어 입력 (제목, 내용, 인물, 조직...)">
 </div>
-
-<div class="filter-chips" id="filterChips">
-  <span class="chip active" data-type="all">전체</span>
-  <span class="chip" data-type="person">인물</span>
-  <span class="chip" data-type="org">조직</span>
-</div>
-
-<div class="entity-summary" id="entitySummary"></div>
 
 <div class="stats" id="stats">
   <span>데이터 로딩 중...</span>
@@ -106,13 +87,7 @@ const PER_PAGE = 30;
 let allData = [];
 let filtered = [];
 let currentPage = 1;
-let activeType = 'all';
 let searchDebounce = null;
-
-const TYPE_MAP = {
-  person: { col: 'solar_persons', label: '인물', cls: 'tag-person', color: '#fecdd3' },
-  org: { col: 'solar_organizations', label: '조직', cls: 'tag-org', color: '#bbf7d0' }
-};
 
 function parseEntities(str) {
   if (!str || str.trim() === '') return [];
@@ -150,7 +125,6 @@ function loadData() {
       document.getElementById('progressFill').style.width = '100%';
       allData.sort((a, b) => b.date.localeCompare(a.date));
       applyFilters();
-      showEntitySummary();
       document.getElementById('loading').style.display = 'none';
     },
     error: function(err) {
@@ -160,24 +134,10 @@ function loadData() {
   });
 }
 
-function showEntitySummary() {
-  let counts = { person: 0, org: 0 };
-  for (const item of allData) {
-    counts.person += item.persons.length;
-    counts.org += item.orgs.length;
-  }
-  const el = document.getElementById('entitySummary');
-  el.innerHTML = Object.entries(TYPE_MAP).map(([key, info]) =>
-    `<span class="entity-count"><span class="entity-dot" style="background:${info.color}"></span>${info.label}: ${counts[key].toLocaleString()}개</span>`
-  ).join('') + `<span class="entity-count" style="color:#a8a29e">기사 ${allData.length.toLocaleString()}건</span>`;
-}
-
 function applyFilters() {
   const query = document.getElementById('searchInput').value.toLowerCase().trim();
 
   filtered = allData.filter(item => {
-    if (activeType === 'person' && item.persons.length === 0) return false;
-    if (activeType === 'org' && item.orgs.length === 0) return false;
     if (query && !item._search.includes(query)) return false;
     return true;
   });
@@ -192,7 +152,7 @@ function render() {
   const pageItems = filtered.slice(start, start + PER_PAGE);
 
   document.getElementById('stats').innerHTML =
-    `<span>${filtered.length.toLocaleString()}건</span>
+    `<span>전체 ${allData.length.toLocaleString()}건 가운데 ${filtered.length.toLocaleString()}건.</span>
      <span>${currentPage} / ${Math.max(1, totalPages)}</span>`;
 
   const contentEl = document.getElementById('content');
@@ -287,15 +247,6 @@ function goPage(n) {
 document.getElementById('searchInput').addEventListener('input', () => {
   clearTimeout(searchDebounce);
   searchDebounce = setTimeout(applyFilters, 300);
-});
-
-document.getElementById('filterChips').addEventListener('click', (e) => {
-  const chip = e.target.closest('.chip');
-  if (!chip) return;
-  document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
-  chip.classList.add('active');
-  activeType = chip.dataset.type;
-  applyFilters();
 });
 
 document.addEventListener('keydown', (e) => {
