@@ -91,13 +91,18 @@ let filtered = [];
 let currentPage = 1;
 let searchDebounce = null;
 
+const TYPE_MAP = {
+  person: { label: '인물', cls: 'tag-person' },
+  org: { label: '조직', cls: 'tag-org' }
+};
+
 function parseEntities(str) {
   if (!str || str.trim() === '') return [];
   return str.split(';').map(s => s.trim()).filter(s => s.length > 0);
 }
 
 function loadData() {
-  const csvPath = 'data/raw/slowletter_solar_entities.csv';
+  const csvPath = 'data/raw/slowletter_web.csv';
   let rowCount = 0;
 
   Papa.parse(csvPath, {
@@ -108,12 +113,12 @@ function loadData() {
       for (const row of results.data) {
         if (!row.title || !row.date) continue;
         const item = {
-          id: row.ID || '',
-          date: row.date ? row.date.substring(0, 10) : '',
+          id: row.id || '',
+          date: row.date || '',
           title: row.title || '',
-          content: row.cleaned_content_for_service || '',
-          persons: parseEntities(row.solar_persons),
-          orgs: parseEntities(row.solar_organizations),
+          content: row.content || '',
+          persons: parseEntities(row.persons),
+          orgs: parseEntities(row.orgs),
         };
         item._search = (item.title + ' ' + item.content + ' ' +
           item.persons.join(' ') + ' ' + item.orgs.join(' ')).toLowerCase();
@@ -199,14 +204,22 @@ function render() {
 }
 
 function formatContent(text) {
-  // Content has • bullets, \n line breaks, and [text](url) markdown links
-  // 1) Escape HTML
-  let safe = escapeHtml(text);
-  // 2) Convert markdown links [text](url) to <a> tags
-  safe = safe.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g,
-    '<a href="$2" target="_blank" rel="noopener">$1</a>');
-  // 3) Line breaks
-  safe = safe.replace(/\n/g, '<br>');
+  // Content has • bullets, <br> tags, and [text](url) markdown links
+  // 1) Extract <br> and markdown links, escape the rest
+  let safe = text.replace(/<br>/g, '%%BR%%');
+  // Extract markdown links
+  const links = [];
+  safe = safe.replace(/\[([^\]]*)\]\((https?:\/\/[^)]+)\)/g, (m, label, url) => {
+    links.push({label, url});
+    return '%%LINK' + (links.length - 1) + '%%';
+  });
+  safe = escapeHtml(safe);
+  // Restore links and line breaks
+  safe = safe.replace(/%%LINK(\d+)%%/g, (m, i) => {
+    const l = links[parseInt(i)];
+    return '<a href="' + l.url + '" target="_blank" rel="noopener">' + escapeHtml(l.label) + '</a>';
+  });
+  safe = safe.replace(/%%BR%%/g, '<br>');
   return safe;
 }
 
