@@ -1,0 +1,30 @@
+name: Daily Slowletter Pipeline
+on:
+  schedule:
+    - cron: '0 22 * * 0-4'
+  workflow_dispatch:
+jobs:
+  run-pipeline:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -r requirements.txt
+      - name: 이전 데이터 복원
+        uses: actions/cache@v4
+        with:
+          path: data/
+          key: slowletter-data-${{ github.run_number }}
+          restore-keys: slowletter-data-
+      - run: python slowletter_pipeline.py
+        env:
+          SOLAR_API_KEY: ${{ secrets.SOLAR_API_KEY }}
+      - name: 결과 커밋
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -f data/*.csv
+          git diff --cached --quiet || git commit -m "데이터 업데이트 $(date +%Y-%m-%d)"
+          git push
