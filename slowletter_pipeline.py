@@ -70,6 +70,23 @@ SOLAR_MAX_RETRIES = 10
 SOLAR_BACKOFF = 5.0
 
 
+
+# ============================================================
+# 텔레그램 알림
+# ============================================================
+def send_telegram(message: str):
+    """텔레그램으로 알림 전송."""
+    bot_token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+    chat_id = os.environ.get("TELEGRAM_CHAT_ID", "")
+    if not bot_token or not chat_id:
+        return
+    try:
+        url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+        requests.post(url, json={"chat_id": chat_id, "text": message, "parse_mode": "HTML"}, timeout=10)
+    except Exception:
+        pass
+
+
 # ============================================================
 # 로깅 설정
 # ============================================================
