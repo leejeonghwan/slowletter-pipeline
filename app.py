@@ -74,20 +74,20 @@ def get_trend(keyword, granularity="month"):
 
 # ===== 사이드바 =====
 with st.sidebar:
-    st.markdown("### 슬로우 컨텍스트")
-    st.markdown("Slow Context: 슬로우레터 기반의 맥락 분석 서비스")
+    st.markdown("### 슬로우 컨텍스트.")
+    st.markdown("Slow Context: 슬로우레터 기반의 맥락 분석 서비스.")
 
     api_ok = check_api()
     if api_ok:
-        st.success("✅ API 서버 연결됨")
+        st.success("✅ API Server connected.")
     else:
-        st.error("❌ API 서버 연결 안됨")
+        st.error("❌ API Server disconnected.")
 
-    mode = st.radio("모드 선택", ["💬 채팅", "📊 타임라인", "📈 트렌드"], index=0)
+    mode = st.radio("", ["💬 채팅.", "📊 타임라인.", "📈 트렌드."], index=0)
 
     st.markdown("---")
     st.caption("데이터: 2023.04 ~ 2026.02")
-    st.caption("약 17,988건 뉴스 코멘터리")
+    st.caption("17,988 news archives.")
 
 
 # ===== 채팅 모드 =====
