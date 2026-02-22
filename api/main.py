@@ -140,12 +140,39 @@ def root():
 
 @app.post("/query", response_model=QueryResponse)
 def query_endpoint(req: QueryRequest):
-    """에이전트 기반 질의응답"""
+    """에이전트 기반 질의응답
+
+    Anthropic 크레딧/네트워크/인증 문제 등으로 에이전트 호출이 실패하더라도
+    500으로 터지지 않게, 로컬 검색(BM25/벡터) 기반 요약으로 폴백합니다.
+    """
     if not agent:
         raise HTTPException(status_code=503, detail="Agent not initialized")
 
-    result = agent.query(req.question, req.conversation_history)
-    return QueryResponse(**result)
+    try:
+        result = agent.query(req.question, req.conversation_history)
+        return QueryResponse(**result)
+    except Exception as e:
+        # Agent 실패 시: 검색 컨텍스트 기반으로 최소한의 답변 제공
+        fallback_answer = None
+        try:
+            if hybrid_search is not None:
+                # search_with_context는 내부적으로 하이브리드 검색을 호출
+                ctx = hybrid_search.search_with_context(req.question, top_k=8)
+                fallback_answer = (
+                    "(에이전트 호출이 실패하여, 검색 결과 기반으로만 답변합니다.)\n\n"
+                    + ctx
+                )
+        except Exception:
+            fallback_answer = None
+
+        msg = str(e)
+        if fallback_answer is None:
+            fallback_answer = (
+                "(에이전트 호출이 실패했습니다.)\n"
+                f"오류: {msg}"
+            )
+
+        return QueryResponse(answer=fallback_answer, tool_calls=[], rounds=0)
 
 
 @app.post("/search")

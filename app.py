@@ -110,17 +110,20 @@ if mode == "💬 채팅.":
 
     st.markdown("---")
 
-    # 질문 입력
+    # 질문 입력 (Enter로 제출 가능하도록 form 사용)
     default_q = st.session_state.pop("question_input", "")
-    question = st.text_input("질문을 입력하세요:", value=default_q, key="q_input")
 
-    if st.button("🔍 분석하기", type="primary", disabled=not api_ok) and question:
+    with st.form("query_form", clear_on_submit=False):
+        question = st.text_input("질문을 입력하세요:", value=default_q, key="q_input")
+        submitted = st.form_submit_button("🔍 분석하기", type="primary", disabled=not api_ok)
+
+    if submitted and question:
         with st.spinner("분석 중... (최대 1~2분 소요)"):
             result = query_agent(question)
 
         # 답변 표시
         st.markdown("---")
-        st.markdown("### 📝 답변")
+        st.markdown("### 📝 답변:")
         st.markdown(result["answer"])
 
         # 사용된 도구
