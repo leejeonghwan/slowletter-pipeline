@@ -22,6 +22,15 @@ st.set_page_config(page_title="슬로우 컨텍스트", page_icon="📰", layout
 st.markdown(
     """
     <style>
+      /* === Layout alignment (sidebar vs main top) === */
+      section.main .block-container {
+        padding-top: 2.25rem;
+      }
+      section[data-testid="stSidebar"] > div {
+        padding-top: 2.25rem;
+      }
+
+      /* === Sidebar theme === */
       section[data-testid="stSidebar"] {
         background-color: #fdad00;
       }
@@ -30,7 +39,7 @@ st.markdown(
         color: #111111;
       }
       /* 일부 컴포넌트(버튼/라벨) 대비 보정 */
-      section[data-testid="stSidebar"] button, 
+      section[data-testid="stSidebar"] button,
       section[data-testid="stSidebar"] [role="button"] {
         color: #111111 !important;
       }
