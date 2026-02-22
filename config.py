@@ -2,6 +2,15 @@
 import os
 from pathlib import Path
 
+# .env 로드 (서버 프로세스 실행 환경에 키가 export되지 않아도 동작하도록)
+try:
+    from dotenv import load_dotenv  # type: ignore
+    _BASE_DIR = Path(__file__).parent
+    load_dotenv(_BASE_DIR / ".env")
+except Exception:
+    # dotenv 미설치/로딩 실패 시에도 기본 동작은 유지
+    pass
+
 # 경로 설정
 BASE_DIR = Path(__file__).parent
 DATA_DIR = BASE_DIR / "data"
