@@ -11,6 +11,7 @@ from pathlib import Path
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import Optional
@@ -131,6 +132,16 @@ class TrendRequest(BaseModel):
     granularity: str = "month"
 
 
+class DocResponse(BaseModel):
+    doc_id: str
+    date: str
+    title: str
+    content: str
+    persons: str = ""
+    organizations: str = ""
+    concepts: str = ""
+
+
 # ===== Endpoints =====
 
 @app.get("/")
@@ -218,6 +229,39 @@ def trend_endpoint(req: TrendRequest):
         granularity=req.granularity,
     )
     return trend
+
+
+@app.get("/doc/{doc_id}", response_model=DocResponse)
+def doc_endpoint(doc_id: str):
+    """문서 단건 조회 (UI에서 permalinks/토글용)."""
+    if not entity_db:
+        raise HTTPException(status_code=503, detail="Entity DB not initialized")
+
+    try:
+        # EntityDB는 entity 중심 API라서, 여기서는 SQLite를 직접 조회한다.
+        import sqlite3
+        conn = sqlite3.connect(str(SQLITE_DB))
+        row = conn.execute(
+            "SELECT doc_id, date, title, content, persons, organizations, concepts "
+            "FROM documents WHERE doc_id = ?",
+            (doc_id,),
+        ).fetchone()
+        conn.close()
+        if not row:
+            raise HTTPException(status_code=404, detail="Document not found")
+        return DocResponse(
+            doc_id=row[0],
+            date=row[1],
+            title=row[2],
+            content=row[3],
+            persons=row[4] or "",
+            organizations=row[5] or "",
+            concepts=row[6] or "",
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/health")

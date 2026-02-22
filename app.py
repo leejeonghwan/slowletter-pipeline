@@ -16,6 +16,7 @@ import requests
 import sqlite3
 
 API_URL = "http://localhost:8000"
+BASE_PUBLIC_URL = "https://slownews.net"
 
 st.set_page_config(page_title="슬로우 컨텍스트", page_icon="📰", layout="wide")
 
@@ -104,6 +105,16 @@ def query_agent(question):
         return {"answer": f"오류: {str(e)}", "tool_calls": [], "rounds": 0}
 
 
+def get_doc(doc_id: str) -> dict:
+    try:
+        r = requests.get(f"{API_URL}/doc/{doc_id}", timeout=20)
+        if r.status_code != 200:
+            return {}
+        return r.json()
+    except Exception:
+        return {}
+
+
 def get_timeline(entity_name, granularity="month"):
     try:
         r = requests.post(f"{API_URL}/timeline", json={"entity_name": entity_name, "granularity": granularity}, timeout=30)
@@ -144,6 +155,39 @@ if mode == "💬 채팅.":
     st.title("슬로우 컨텍스트.")
     st.markdown("Slow Context: 슬로우레터 기반의 맥락 분석 서비스.")
 
+    # permalink 진입 시 단건 문서 뷰
+    try:
+        qp = st.query_params  # streamlit 최신
+    except Exception:
+        qp = st.experimental_get_query_params()  # 구버전 호환
+
+    doc_param = None
+    try:
+        doc_param = qp.get("doc")
+        if isinstance(doc_param, list):
+            doc_param = doc_param[0] if doc_param else None
+    except Exception:
+        doc_param = None
+
+    if doc_param:
+        doc = get_doc(str(doc_param))
+        if doc:
+            st.markdown("---")
+            st.subheader("문서.")
+            st.caption(f"{doc.get('date','')} | {doc.get('doc_id','')}")
+            st.markdown(doc.get("title", ""))
+            with st.expander("원문.", expanded=True):
+                st.markdown(doc.get("content", ""))
+            # 뒤로가기(쿼리 제거)
+            if st.button("목록으로."):
+                try:
+                    st.query_params.clear()
+                except Exception:
+                    st.experimental_set_query_params()
+                st.rerun()
+        else:
+            st.warning("문서를 찾지 못했다.")
+
     st.markdown("---")
 
     # 질문 입력 (Enter로 제출 가능하도록 form 사용)
@@ -161,6 +205,35 @@ if mode == "💬 채팅.":
         st.markdown("---")
         st.markdown("### 📝 답변:")
         st.markdown(ensure_period(result.get("answer", "")))
+
+        # 근거(검색 결과) 토글
+        st.markdown("---")
+        st.subheader("근거.")
+        try:
+            s = requests.post(
+                f"{API_URL}/search",
+                json={"query": question, "top_k": 10},
+                timeout=30,
+            )
+            payload = s.json() if s.status_code == 200 else {"results": []}
+            refs = payload.get("results", []) or []
+        except Exception:
+            refs = []
+
+        if not refs:
+            st.caption("관련 문서를 찾지 못했다.")
+        else:
+            for r in refs:
+                doc_id = r.get("doc_id", "")
+                title = r.get("title", "")
+                date = r.get("date", "")
+                permalink = f"{BASE_PUBLIC_URL}/?doc={doc_id}" if doc_id else ""
+
+                label = f"({date}) {title}".strip()
+                with st.expander(label, expanded=False):
+                    if permalink:
+                        st.markdown(f"Permalink. {permalink}")
+                    st.markdown(r.get("content", ""))
 
         # 사용된 도구
         if result.get("tool_calls"):
