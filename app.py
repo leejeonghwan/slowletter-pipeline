@@ -206,7 +206,7 @@ if mode == "💬 채팅.":
         st.markdown("### 📝 답변:")
         st.markdown(ensure_period(result.get("answer", "")))
 
-        # 근거(검색 결과) 토글
+        # 근거(검색 결과) 기본 10개를 바로 노출
         st.markdown("---")
         st.subheader("근거.")
         try:
@@ -223,17 +223,20 @@ if mode == "💬 채팅.":
         if not refs:
             st.caption("관련 문서를 찾지 못했다.")
         else:
-            for r in refs:
+            for i, r in enumerate(refs, 1):
                 doc_id = r.get("doc_id", "")
                 title = r.get("title", "")
                 date = r.get("date", "")
                 permalink = f"{BASE_PUBLIC_URL}/?doc={doc_id}" if doc_id else ""
 
-                label = f"({date}) {title}".strip()
-                with st.expander(label, expanded=False):
-                    if permalink:
-                        st.markdown(f"Permalink. {permalink}")
-                    st.markdown(r.get("content", ""))
+                st.markdown(f"{i}. ({date}) {title}.")
+                if doc_id:
+                    st.caption(f"doc_id. {doc_id}.")
+                if permalink:
+                    st.caption(f"permalink. {permalink}.")
+
+                st.markdown(r.get("content", ""))
+                st.markdown("---")
 
         # 사용된 도구
         if result.get("tool_calls"):
