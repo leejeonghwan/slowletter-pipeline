@@ -16,7 +16,28 @@ import requests
 
 API_URL = "http://localhost:8000"
 
-st.set_page_config(page_title="SlowLetter RAG", page_icon="📰", layout="wide")
+st.set_page_config(page_title="슬로우 컨텍스트", page_icon="📰", layout="wide")
+
+# Sidebar 색상 등 간단한 스타일 오버라이드
+st.markdown(
+    """
+    <style>
+      section[data-testid="stSidebar"] {
+        background-color: #fdad00;
+      }
+      /* 사이드바 내 텍스트 가독성 */
+      section[data-testid="stSidebar"] * {
+        color: #111111;
+      }
+      /* 일부 컴포넌트(버튼/라벨) 대비 보정 */
+      section[data-testid="stSidebar"] button, 
+      section[data-testid="stSidebar"] [role="button"] {
+        color: #111111 !important;
+      }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
 
 
 def check_api():
@@ -53,8 +74,8 @@ def get_trend(keyword, granularity="month"):
 
 # ===== 사이드바 =====
 with st.sidebar:
-    st.markdown("### 📰 SlowLetter RAG")
-    st.markdown("뉴스 맥락 검색 & 시계열 분석")
+    st.markdown("### 슬로우 컨텍스트")
+    st.markdown("Slow Context: 슬로우레터 기반의 맥락 분석 서비스")
 
     api_ok = check_api()
     if api_ok:
@@ -71,21 +92,8 @@ with st.sidebar:
 
 # ===== 채팅 모드 =====
 if mode == "💬 채팅":
-    st.title("SlowLetter 뉴스 분석")
-    st.markdown("3년치 뉴스 코멘터리를 AI가 분석합니다")
-
-    # 예시 질문 버튼
-    st.markdown("**예시 질문:**")
-    cols = st.columns(3)
-    examples = [
-        "탄핵 이후 언론 논조 변화는?",
-        "이재명 관련 최근 이슈는?",
-        "AI 관련 보도 트렌드는?",
-    ]
-    for i, q in enumerate(examples):
-        with cols[i]:
-            if st.button(q, key=f"ex_{i}"):
-                st.session_state["question_input"] = q
+    st.title("슬로우 컨텍스트")
+    st.markdown("Slow Context: 슬로우레터 기반의 맥락 분석 서비스")
 
     st.markdown("---")
 
