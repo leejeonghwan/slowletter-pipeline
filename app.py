@@ -100,7 +100,6 @@ with st.sidebar:
     mode = st.radio("Mode", ["💬 채팅.", "📊 타임라인.", "📈 트렌드."], index=0, label_visibility="collapsed")
 
     st.markdown("---")
-    st.caption("데이터: 2023.04 ~ 2026.02")
     st.caption("17,988 news archives.")
 
 
