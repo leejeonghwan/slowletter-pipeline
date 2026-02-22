@@ -13,6 +13,7 @@ os.chdir(ROOT)
 
 import streamlit as st
 import requests
+import sqlite3
 
 API_URL = "http://localhost:8000"
 
@@ -55,6 +56,30 @@ def check_api():
         return r.status_code == 200
     except Exception:
         return False
+
+
+def get_archive_count() -> int | None:
+    """로컬 SQLite 기준 문서 수를 반환합니다(가능하면 자동 표시)."""
+    try:
+        conn = sqlite3.connect("data/processed/entities.db")
+        cur = conn.execute("SELECT COUNT(*) FROM documents")
+        n = int(cur.fetchone()[0])
+        conn.close()
+        return n
+    except Exception:
+        return None
+
+
+def ensure_period(text: str) -> str:
+    """답변 끝에 마침표를 보정합니다."""
+    if text is None:
+        return "."
+    t = text.strip()
+    if not t:
+        return "."
+    if t.endswith((".", "!", "?", "…", "。")):
+        return t
+    return t + "."
 
 
 def query_agent(question):
@@ -109,7 +134,9 @@ with st.sidebar:
     mode = st.radio("Mode", ["💬 채팅.", "📊 타임라인.", "📈 트렌드."], index=0, label_visibility="collapsed")
 
     st.markdown("---")
-    st.caption("17,988 news archives.")
+    n_archives = get_archive_count()
+    if n_archives is not None:
+        st.caption(f"{n_archives:,} news archives.")
 
 
 # ===== 채팅 모드 =====
@@ -133,7 +160,7 @@ if mode == "💬 채팅.":
         # 답변 표시
         st.markdown("---")
         st.markdown("### 📝 답변:")
-        st.markdown(result["answer"])
+        st.markdown(ensure_period(result.get("answer", "")))
 
         # 사용된 도구
         if result.get("tool_calls"):
