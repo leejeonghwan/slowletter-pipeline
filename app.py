@@ -105,8 +105,8 @@ with st.sidebar:
 
 # ===== 채팅 모드 =====
 if mode == "💬 채팅.":
-    st.title("슬로우 컨텍스트")
-    st.markdown("Slow Context: 슬로우레터 기반의 맥락 분석 서비스")
+    st.title("슬로우 컨텍스트.")
+    st.markdown("Slow Context: 슬로우레터 기반의 맥락 분석 서비스.")
 
     st.markdown("---")
 
