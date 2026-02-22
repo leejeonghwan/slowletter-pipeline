@@ -45,21 +45,54 @@ class KiwiBM25:
         self.inverted_index: dict[str, list[tuple[int, int]]] = defaultdict(list)
 
     def tokenize(self, text: str) -> list[str]:
-        """텍스트를 형태소 분석하여 토큰 리스트를 반환합니다."""
+        """텍스트를 형태소 분석하여 토큰 리스트를 반환합니다.
+
+        주의:
+        - Kiwi는 한국인 인명(예: "김/낙/호")을 1글자 단위로 쪼개는 경우가 있어,
+          기존 규칙(1글자 한국어 제외)을 그대로 적용하면 인명 검색이 거의 불가능해집니다.
+        - 그래서 "연속된 1글자 명사(NN*)"는 합쳐서(예: 김+낙+호 → 김낙호) 토큰으로 추가합니다.
+        """
         if self.kiwi:
             result = self.kiwi.tokenize(text)
-            # 명사(NNG, NNP), 동사(VV), 형용사(VA), 외래어(SL) 추출
-            tokens = []
+
+            tokens: list[str] = []
+            hangul_nn_1char_buf: list[str] = []
+
+            def flush_buf():
+                nonlocal hangul_nn_1char_buf, tokens
+                if len(hangul_nn_1char_buf) >= 2:
+                    tokens.append("".join(hangul_nn_1char_buf))
+                hangul_nn_1char_buf = []
+
             for token in result:
                 tag = token.tag
+                form = token.form.lower()
+
+                is_hangul_1char_nn = (
+                    tag.startswith("NN")
+                    and len(form) == 1
+                    and ('가' <= form <= '힣')
+                )
+
+                if is_hangul_1char_nn:
+                    hangul_nn_1char_buf.append(form)
+                    continue
+
+                # 버퍼를 끊는 지점
+                flush_buf()
+
+                # 명사(NNG, NNP), 동사(VV), 형용사(VA), 외래어(SL/SH) 등
                 if tag.startswith(("NN", "VV", "VA", "SL", "SH")):
-                    form = token.form.lower()
-                    if len(form) >= 2 or tag.startswith("SL"):  # 1글자 한국어 제외
+                    # 1글자 한국어는 노이즈가 많아 기본적으로 제외하되,
+                    # 외래어(SL)는 1글자여도 남긴다.
+                    if len(form) >= 2 or tag.startswith(("SL", "SH")):
                         tokens.append(form)
+
+            flush_buf()
             return tokens
-        else:
-            # Fallback: 간단한 공백 분리
-            return [w.lower() for w in text.split() if len(w) >= 2]
+
+        # Fallback: 간단한 공백 분리
+        return [w.lower() for w in text.split() if len(w) >= 2]
 
     def build_index(self, doc_ids: list[str], texts: list[str], metadata: list[dict]):
         """BM25 인덱스를 구축합니다."""
