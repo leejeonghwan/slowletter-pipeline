@@ -97,7 +97,7 @@ with st.sidebar:
     else:
         st.error("❌ API Server disconnected.")
 
-    mode = st.radio("", ["💬 채팅.", "📊 타임라인.", "📈 트렌드."], index=0)
+    mode = st.radio("Mode", ["💬 채팅.", "📊 타임라인.", "📈 트렌드."], index=0, label_visibility="collapsed")
 
     st.markdown("---")
     st.caption("데이터: 2023.04 ~ 2026.02")
@@ -105,7 +105,7 @@ with st.sidebar:
 
 
 # ===== 채팅 모드 =====
-if mode == "💬 채팅":
+if mode == "💬 채팅.":
     st.title("슬로우 컨텍스트")
     st.markdown("Slow Context: 슬로우레터 기반의 맥락 분석 서비스")
 
@@ -140,7 +140,7 @@ if mode == "💬 채팅":
 
 
 # ===== 타임라인 모드 =====
-elif mode == "📊 타임라인":
+elif mode == "📊 타임라인.":
     st.title("엔티티 타임라인")
     st.markdown("인물/조직/키워드의 시간순 보도 흐름")
 
@@ -179,7 +179,7 @@ elif mode == "📊 타임라인":
 
 
 # ===== 트렌드 모드 =====
-elif mode == "📈 트렌드":
+elif mode == "📈 트렌드.":
     st.title("트렌드 분석")
     st.markdown("키워드 빈도 변화 + 공출현 엔티티 + 대표 문서")
 
