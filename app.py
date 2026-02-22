@@ -50,8 +50,22 @@ def check_api():
 
 def query_agent(question):
     try:
-        r = requests.post(f"{API_URL}/query", json={"question": question}, timeout=120)
-        return r.json()
+        r = requests.post(f"{API_URL}/query", json={"question": question}, timeout=180)
+        if r.status_code != 200:
+            # FastAPI가 500일 때 text/plain으로 내려주는 경우가 있어 json 파싱을 피한다.
+            return {
+                "answer": f"오류: API {r.status_code} - {r.text.strip()[:800]}",
+                "tool_calls": [],
+                "rounds": 0,
+            }
+        try:
+            return r.json()
+        except Exception:
+            return {
+                "answer": f"오류: Invalid JSON response - {r.text.strip()[:800]}",
+                "tool_calls": [],
+                "rounds": 0,
+            }
     except Exception as e:
         return {"answer": f"오류: {str(e)}", "tool_calls": [], "rounds": 0}
 
