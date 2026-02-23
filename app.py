@@ -33,17 +33,29 @@ st.markdown(
         padding-top: 2.25rem;
       }
 
-      /* === Sidebar theme === */
-      section[data-testid="stSidebar"] {
+      /* === Main theme === */
+      html, body, [data-testid="stAppViewContainer"] {
         background-color: #000000;
+      }
+      [data-testid="stAppViewContainer"] * {
+        color: #ffffff;
+      }
+      /* main 영역 링크는 슬로우 컬러 */
+      [data-testid="stAppViewContainer"] a {
+        color: #fdad00 !important;
+      }
+
+      /* === Sidebar theme (SlowNews company color) === */
+      section[data-testid="stSidebar"] {
+        background-color: #fdad00;
       }
       /* 사이드바 내 텍스트 가독성 */
       section[data-testid="stSidebar"] * {
-        color: #ffffff;
+        color: #111111;
       }
-      /* 링크 색은 슬로우 컬러 */
+      /* 사이드바 링크도 검정으로(가독성/통일) */
       section[data-testid="stSidebar"] a {
-        color: #fdad00 !important;
+        color: #111111 !important;
       }
       /* Streamlit status box(성공/에러) 글자 대비 */
       section[data-testid="stSidebar"] [data-testid="stAlert"] * {
