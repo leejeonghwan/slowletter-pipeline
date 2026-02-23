@@ -58,7 +58,7 @@ python -u "$SCRIPT_DIR/build_all.py" "$SCRIPT_DIR/data/raw/slowletter_solar_enti
 # --- restart services ---
 echo "[3/4] restart services"
 nohup uvicorn api.main:app --host 0.0.0.0 --port 8000 > "$SCRIPT_DIR/server.log" 2>&1 &
-nohup streamlit run app.py --server.port 8501 --server.headless true --server.address 127.0.0.1 > "$SCRIPT_DIR/streamlit.log" 2>&1 &
+nohup streamlit run app.py --server.port 8510 --server.headless true --server.address 127.0.0.1 > "$SCRIPT_DIR/streamlit.log" 2>&1 &
 
 sleep 3
 
