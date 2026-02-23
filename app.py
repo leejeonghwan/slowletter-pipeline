@@ -132,6 +132,45 @@ def get_trend(keyword, granularity="month"):
         return {}
 
 
+def _evidence_score(r: dict) -> float:
+    """검색 결과의 상대 점수를 계산한다.
+
+    - 하이브리드 점수(hybrid_score)가 있으면 우선.
+    - 없으면 BM25 점수(score)를 사용한다.
+    """
+    try:
+        hs = float(r.get("hybrid_score") or 0.0)
+    except Exception:
+        hs = 0.0
+    try:
+        bs = float(r.get("score") or 0.0)
+    except Exception:
+        bs = 0.0
+    return hs if hs > 0 else bs
+
+
+def _select_evidence(refs: list[dict], max_items: int = 10) -> list[dict]:
+    """최대 max_items에서, 관련도가 낮으면 자동으로 줄인다."""
+    if not refs:
+        return []
+
+    refs = list(refs)[:max_items]
+
+    scores = [_evidence_score(r) for r in refs]
+    best = max(scores) if scores else 0.0
+    if best <= 0:
+        # 점수 체계가 없거나 전부 0이면 상위 3개까지만.
+        return refs[: min(3, len(refs))]
+
+    # 최고 점수 대비 비율로 컷.
+    # 너무 빡세면 근거가 0이 되니 최소 1개 보장.
+    cutoff_ratio = 0.35
+    selected = [r for r in refs if _evidence_score(r) >= best * cutoff_ratio]
+    if not selected:
+        return refs[:1]
+    return selected
+
+
 def render_answer_and_evidence(question: str, api_ok: bool):
     if not api_ok:
         st.error("❌ API Server disconnected.")
@@ -156,6 +195,8 @@ def render_answer_and_evidence(question: str, api_ok: bool):
         refs = payload.get("results", []) or []
     except Exception:
         refs = []
+
+    refs = _select_evidence(refs, max_items=10)
 
     if not refs:
         st.caption("관련 문서를 찾지 못했다.")
