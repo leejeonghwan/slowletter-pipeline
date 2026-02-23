@@ -349,7 +349,9 @@ if mode == "채팅.":
     if q_param and not default_q:
         default_q = str(q_param)
 
-    st.session_state["q_input"] = default_q
+    # Streamlit은 입력 시마다 rerun하므로, 매번 값을 덮어쓰면 타이핑이 막힌다.
+    if "q_input" not in st.session_state:
+        st.session_state["q_input"] = default_q
     question, _, submitted = render_query_bar(text_key="q_input", disabled=not api_ok)
 
     if doc_param:
