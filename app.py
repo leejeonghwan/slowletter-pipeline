@@ -363,7 +363,7 @@ elif mode == "타임라인.":
 
     col1, col2 = st.columns([3, 1])
     with col1:
-        entity_name = st.text_input("인물/조직/키워드", value="윤석열")
+        entity_name = st.text_input("", value="", placeholder="인물/조직/키워드.", label_visibility="collapsed")
     with col2:
         granularity = st.selectbox("시간 단위", ["month", "week", "day"], index=0)
 
@@ -402,7 +402,7 @@ elif mode == "트렌드.":
 
     col1, col2 = st.columns([3, 1])
     with col1:
-        keyword = st.text_input("분석 키워드", value="탄핵")
+        keyword = st.text_input("", value="", placeholder="키워드.", label_visibility="collapsed")
     with col2:
         t_granularity = st.selectbox("시간 단위", ["month", "day"], index=0, key="tg")
 
