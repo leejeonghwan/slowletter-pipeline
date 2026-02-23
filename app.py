@@ -250,6 +250,25 @@ def render_answer_and_evidence(question: str, api_ok: bool):
             st.markdown("---")
 
 
+def render_query_bar(text_key: str, select_key: str | None = None, select_options: list[str] | None = None):
+    """모든 화면에서 같은 위치/형태의 입력 바를 만든다."""
+    col1, col2 = st.columns([4, 1])
+
+    with st.form(f"form_{text_key}", clear_on_submit=False):
+        with col1:
+            text = st.text_input("", value="", key=text_key, label_visibility="collapsed")
+        sel = None
+        if select_key and select_options:
+            with col2:
+                sel = st.selectbox("", select_options, index=0, key=select_key, label_visibility="collapsed")
+        else:
+            with col2:
+                st.markdown(" ")
+        submitted = st.form_submit_button("분석하기.", type="primary")
+
+    return text, sel, submitted
+
+
 # ===== 사이드바 =====
 HOME_URL = f"{BASE_PUBLIC_URL}/"
 
@@ -330,8 +349,13 @@ if mode == "채팅.":
     if q_param and not default_q:
         default_q = str(q_param)
 
+    # 입력 바(라벨/placeholder 없음, 버튼 텍스트 공통)
     with st.form("query_form", clear_on_submit=False):
-        question = st.text_input("질문을 입력하세요:", value=default_q, key="q_input")
+        col1, col2 = st.columns([4, 1])
+        with col1:
+            question = st.text_input("", value=default_q, key="q_input", label_visibility="collapsed")
+        with col2:
+            st.markdown(" ")
         submitted = st.form_submit_button("분석하기.", type="primary", disabled=not api_ok)
 
     # q=로 들어온 경우, 1회 자동 실행.
@@ -361,15 +385,15 @@ elif mode == "타임라인.":
     st.markdown(f"# [슬로우 컨텍스트.]({HOME_URL})")
     st.markdown("Slow Context: 이슈의 타임라인.")
 
-    col1, col2 = st.columns([3, 1])
-    with col1:
-        entity_name = st.text_input("", value="", placeholder="인물/조직/키워드.", label_visibility="collapsed")
-    with col2:
-        granularity = st.selectbox("시간 단위", ["month", "week", "day"], index=0)
+    entity_name, granularity, submitted = render_query_bar(
+        text_key="timeline_entity",
+        select_key="timeline_gran",
+        select_options=["month", "week", "day"],
+    )
 
-    if st.button("타임라인 조회", type="primary", disabled=not api_ok) and entity_name:
+    if submitted and entity_name:
         with st.spinner("조회 중..."):
-            timeline = get_timeline(entity_name, granularity)
+            timeline = get_timeline(entity_name, granularity or "month")
 
         if timeline:
             st.markdown(f"**'{entity_name}' 보도 타임라인** ({len(timeline)}개 기간)")
@@ -400,15 +424,15 @@ elif mode == "트렌드.":
     st.markdown(f"# [슬로우 컨텍스트.]({HOME_URL})")
     st.markdown("Slow Context: 이슈의 구조와 맥락 읽기.")
 
-    col1, col2 = st.columns([3, 1])
-    with col1:
-        keyword = st.text_input("", value="", placeholder="키워드.", label_visibility="collapsed")
-    with col2:
-        t_granularity = st.selectbox("시간 단위", ["month", "day"], index=0, key="tg")
+    keyword, t_granularity, submitted = render_query_bar(
+        text_key="trend_keyword",
+        select_key="trend_gran",
+        select_options=["month", "day"],
+    )
 
-    if st.button("트렌드 분석", type="primary", disabled=not api_ok) and keyword:
+    if submitted and keyword:
         with st.spinner("분석 중..."):
-            trend = get_trend(keyword, t_granularity)
+            trend = get_trend(keyword, t_granularity or "month")
 
         if trend and trend.get("timeline"):
             # 요약
