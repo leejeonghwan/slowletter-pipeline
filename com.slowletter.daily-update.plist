@@ -8,7 +8,7 @@
   <key>ProgramArguments</key>
   <array>
     <string>/bin/bash</string>
-    <string>/Users/slowclaw/slowletter-pipeline/daily_update.sh</string>
+    <string>/Users/slowclaw/slowletter-pipeline/daily_update_rag.sh</string>
   </array>
 
   <key>WorkingDirectory</key>
@@ -27,7 +27,9 @@
   <dict>
     <key>PATH</key>
     <string>/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin</string>
-    <!-- git push까지 자동화하려면: daily_update.sh 실행 시 GIT_PUSH=1로 설정하거나, 여기에서 EnvironmentVariables로 넣을 수 있습니다 -->
+    <key>GIT_PUSH</key>
+    <string>1</string>
+    <!-- git push 포함. 필요하면 0으로 바꾸면 됩니다 -->
   </dict>
 
   <key>StandardOutPath</key>
