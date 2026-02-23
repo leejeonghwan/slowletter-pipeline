@@ -301,8 +301,14 @@ if mode == "💬 채팅.":
         submitted = st.form_submit_button("🔍 분석하기", type="primary", disabled=not api_ok)
 
     # q=로 들어온 경우, 1회 자동 실행.
+    # 문서(permalink) 뷰에서는 자동 실행하지 않는다.
     auto_key = f"auto_ran::{question}"
-    should_auto_run = bool(q_param) and bool(question) and not st.session_state.get(auto_key)
+    should_auto_run = (
+        bool(q_param)
+        and bool(question)
+        and (not doc_param)
+        and (not st.session_state.get(auto_key))
+    )
 
     if (submitted and question) or should_auto_run:
         st.session_state[auto_key] = True
