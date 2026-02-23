@@ -256,11 +256,22 @@ def render_query_bar(text_key: str, select_key: str | None = None, select_option
 
     with st.form(f"form_{text_key}", clear_on_submit=False):
         with col1:
-            text = st.text_input("", value="", key=text_key, label_visibility="collapsed")
+            text = st.text_input(
+                "query",
+                value=st.session_state.get(text_key, ""),
+                key=text_key,
+                label_visibility="collapsed",
+            )
         sel = None
         if select_key and select_options:
             with col2:
-                sel = st.selectbox("", select_options, index=0, key=select_key, label_visibility="collapsed")
+                sel = st.selectbox(
+                    "granularity",
+                    select_options,
+                    index=0,
+                    key=select_key,
+                    label_visibility="collapsed",
+                )
         else:
             with col2:
                 st.markdown(" ")
@@ -314,11 +325,18 @@ if mode == "채팅.":
         doc_param = None
         q_param = None
 
+    # 채팅에서도 입력 바를 최상단(부제 아래) 고정.
+    default_q = st.session_state.pop("question_input", "")
+    if q_param and not default_q:
+        default_q = str(q_param)
+
+    st.session_state["q_input"] = default_q
+    question, _, submitted = render_query_bar(text_key="q_input")
+
     if doc_param:
         doc = get_doc(str(doc_param))
         if doc:
             st.markdown("---")
-            # 문서 화면에서는 제목을 헤더로 올린다.
             st.header(f"{doc.get('title','')}")
             st.caption(f"{doc.get('date','')} | {doc.get('doc_id','')}")
             with st.expander("원문.", expanded=True):
@@ -331,7 +349,6 @@ if mode == "채팅.":
                     else:
                         st.query_params.clear()
                 except Exception:
-                    # 구버전
                     if q_param:
                         st.experimental_set_query_params(q=q_param)
                     else:
@@ -341,22 +358,6 @@ if mode == "채팅.":
             st.warning("문서를 찾지 못했다.")
 
     st.markdown("---")
-
-    # 질문 입력 (Enter로 제출 가능하도록 form 사용)
-    default_q = st.session_state.pop("question_input", "")
-
-    # q= 파라미터가 있으면 질문을 복원한다.
-    if q_param and not default_q:
-        default_q = str(q_param)
-
-    # 입력 바(라벨/placeholder 없음, 버튼 텍스트 공통)
-    with st.form("query_form", clear_on_submit=False):
-        col1, col2 = st.columns([4, 1])
-        with col1:
-            question = st.text_input("", value=default_q, key="q_input", label_visibility="collapsed")
-        with col2:
-            st.markdown(" ")
-        submitted = st.form_submit_button("분석하기.", type="primary", disabled=not api_ok)
 
     # q=로 들어온 경우, 1회 자동 실행.
     # 문서(permalink) 뷰에서는 자동 실행하지 않는다.
