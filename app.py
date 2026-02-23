@@ -219,25 +219,10 @@ def render_answer_and_evidence(question: str, api_ok: bool):
 
 
 # ===== 사이드바 =====
-def go_home():
-    # 쿼리/문서 상태 초기화
-    try:
-        st.query_params.clear()
-    except Exception:
-        st.experimental_set_query_params()
-    # 질문/자동실행 상태 초기화
-    for k in list(st.session_state.keys()):
-        if k in ("q_input", "question_input", "last_q") or str(k).startswith("auto_ran::"):
-            try:
-                del st.session_state[k]
-            except Exception:
-                pass
-    st.rerun()
-
+HOME_URL = f"{BASE_PUBLIC_URL}/"
 
 with st.sidebar:
-    if st.button("슬로우 컨텍스트.", key="home_sidebar"):
-        go_home()
+    st.markdown(f"### [슬로우 컨텍스트.]({HOME_URL})")
     st.markdown("Slow Context: 슬로우레터 기반의 맥락 분석 서비스.")
 
     api_ok = check_api()
@@ -256,8 +241,7 @@ with st.sidebar:
 
 # ===== 채팅 모드 =====
 if mode == "💬 채팅.":
-    if st.button("슬로우 컨텍스트.", key="home_main"):
-        go_home()
+    st.markdown(f"# [슬로우 컨텍스트.]({HOME_URL})")
     st.markdown("Slow Context: 슬로우레터 기반의 맥락 분석 서비스.")
 
     # permalink 진입 시 단건 문서 뷰
