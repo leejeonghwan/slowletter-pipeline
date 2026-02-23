@@ -35,16 +35,28 @@ st.markdown(
 
       /* === Sidebar theme === */
       section[data-testid="stSidebar"] {
-        background-color: #fdad00;
+        background-color: #000000;
       }
       /* 사이드바 내 텍스트 가독성 */
       section[data-testid="stSidebar"] * {
-        color: #111111;
+        color: #ffffff;
       }
-      /* 일부 컴포넌트(버튼/라벨) 대비 보정 */
-      section[data-testid="stSidebar"] button,
-      section[data-testid="stSidebar"] [role="button"] {
+      /* 링크 색은 슬로우 컬러 */
+      section[data-testid="stSidebar"] a {
+        color: #fdad00 !important;
+      }
+      /* Streamlit status box(성공/에러) 글자 대비 */
+      section[data-testid="stSidebar"] [data-testid="stAlert"] * {
         color: #111111 !important;
+      }
+
+      /* === Title style === */
+      h1 a, h1 a:visited {
+        color: #fdad00 !important;
+        text-decoration: none;
+      }
+      h1 a:hover {
+        text-decoration: underline;
       }
     </style>
     """,
