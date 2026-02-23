@@ -45,6 +45,14 @@ st.markdown(
         color: #fdad00 !important;
       }
 
+      /* 분석하기 버튼 색 */
+      button[kind="primary"],
+      div.stButton > button[kind="primary"] {
+        background-color: #fdad00 !important;
+        border: 1px solid #fdad00 !important;
+        color: #111111 !important;
+      }
+
       /* === Sidebar theme (SlowNews company color) === */
       section[data-testid="stSidebar"] {
         background-color: #fdad00;
@@ -68,7 +76,7 @@ st.markdown(
         text-decoration: none;
       }
       h1 a:hover {
-        text-decoration: underline;
+        text-decoration: none;
       }
     </style>
     """,
@@ -247,7 +255,7 @@ HOME_URL = f"{BASE_PUBLIC_URL}/"
 
 with st.sidebar:
     st.markdown(f"### [슬로우 컨텍스트.]({HOME_URL})")
-    st.markdown("Slow Context: 슬로우레터 기반의 맥락 분석 서비스.")
+    st.markdown("Slow Context.")
 
     api_ok = check_api()
     if api_ok:
@@ -255,7 +263,7 @@ with st.sidebar:
     else:
         st.error("❌ API Server disconnected.")
 
-    mode = st.radio("Mode", ["💬 채팅.", "📊 타임라인.", "📈 트렌드."], index=0, label_visibility="collapsed")
+    mode = st.radio("Mode", ["채팅.", "타임라인.", "트렌드."], index=0, label_visibility="collapsed")
 
     st.markdown("---")
     n_archives = get_archive_count()
@@ -264,7 +272,7 @@ with st.sidebar:
 
 
 # ===== 채팅 모드 =====
-if mode == "💬 채팅.":
+if mode == "채팅.":
     st.markdown(f"# [슬로우 컨텍스트.]({HOME_URL})")
     st.markdown("Slow Context: 슬로우레터 기반의 맥락 분석 서비스.")
 
@@ -324,7 +332,7 @@ if mode == "💬 채팅.":
 
     with st.form("query_form", clear_on_submit=False):
         question = st.text_input("질문을 입력하세요:", value=default_q, key="q_input")
-        submitted = st.form_submit_button("🔍 분석하기", type="primary", disabled=not api_ok)
+        submitted = st.form_submit_button("분석하기.", type="primary", disabled=not api_ok)
 
     # q=로 들어온 경우, 1회 자동 실행.
     # 문서(permalink) 뷰에서는 자동 실행하지 않는다.
@@ -349,9 +357,10 @@ if mode == "💬 채팅.":
 
 
 # ===== 타임라인 모드 =====
-elif mode == "📊 타임라인.":
-    st.title("엔티티 타임라인")
-    st.markdown("인물/조직/키워드의 시간순 보도 흐름")
+elif mode == "타임라인.":
+    st.markdown(f"# [슬로우 컨텍스트.]({HOME_URL})")
+    st.markdown("Slow Context.")
+    st.markdown("이슈의 타임라인.")
 
     col1, col2 = st.columns([3, 1])
     with col1:
@@ -388,9 +397,10 @@ elif mode == "📊 타임라인.":
 
 
 # ===== 트렌드 모드 =====
-elif mode == "📈 트렌드.":
-    st.title("트렌드 분석")
-    st.markdown("키워드 빈도 변화 + 공출현 엔티티 + 대표 문서")
+elif mode == "트렌드.":
+    st.markdown(f"# [슬로우 컨텍스트.]({HOME_URL})")
+    st.markdown("Slow Context.")
+    st.markdown("이슈의 구조와 맥락 읽기.")
 
     col1, col2 = st.columns([3, 1])
     with col1:
