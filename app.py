@@ -45,6 +45,18 @@ st.markdown(
         color: #fdad00 !important;
       }
 
+      /* 입력창 스타일 (검정 배경에서 가독성) */
+      [data-testid="stTextInput"] input {
+        background-color: #111111 !important;
+        color: #ffffff !important;
+        border: 1px solid #333333 !important;
+      }
+      [data-testid="stSelectbox"] div[data-baseweb="select"] > div {
+        background-color: #111111 !important;
+        color: #ffffff !important;
+        border: 1px solid #333333 !important;
+      }
+
       /* 분석하기 버튼 색 */
       button[kind="primary"],
       div.stButton > button[kind="primary"] {
@@ -250,17 +262,23 @@ def render_answer_and_evidence(question: str, api_ok: bool):
             st.markdown("---")
 
 
-def render_query_bar(text_key: str, select_key: str | None = None, select_options: list[str] | None = None):
+def render_query_bar(
+    text_key: str,
+    select_key: str | None = None,
+    select_options: list[str] | None = None,
+    disabled: bool = False,
+):
     """모든 화면에서 같은 위치/형태의 입력 바를 만든다."""
-    col1, col2 = st.columns([4, 1])
 
     with st.form(f"form_{text_key}", clear_on_submit=False):
+        col1, col2 = st.columns([4, 1])
         with col1:
             text = st.text_input(
                 "query",
                 value=st.session_state.get(text_key, ""),
                 key=text_key,
                 label_visibility="collapsed",
+                disabled=disabled,
             )
         sel = None
         if select_key and select_options:
@@ -271,11 +289,12 @@ def render_query_bar(text_key: str, select_key: str | None = None, select_option
                     index=0,
                     key=select_key,
                     label_visibility="collapsed",
+                    disabled=disabled,
                 )
         else:
             with col2:
                 st.markdown(" ")
-        submitted = st.form_submit_button("분석하기.", type="primary")
+        submitted = st.form_submit_button("분석하기.", type="primary", disabled=disabled)
 
     return text, sel, submitted
 
@@ -331,7 +350,7 @@ if mode == "채팅.":
         default_q = str(q_param)
 
     st.session_state["q_input"] = default_q
-    question, _, submitted = render_query_bar(text_key="q_input")
+    question, _, submitted = render_query_bar(text_key="q_input", disabled=not api_ok)
 
     if doc_param:
         doc = get_doc(str(doc_param))
@@ -390,6 +409,7 @@ elif mode == "타임라인.":
         text_key="timeline_entity",
         select_key="timeline_gran",
         select_options=["month", "week", "day"],
+        disabled=not api_ok,
     )
 
     if submitted and entity_name:
@@ -429,6 +449,7 @@ elif mode == "트렌드.":
         text_key="trend_keyword",
         select_key="trend_gran",
         select_options=["month", "day"],
+        disabled=not api_ok,
     )
 
     if submitted and keyword:
