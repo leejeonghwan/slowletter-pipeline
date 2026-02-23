@@ -219,8 +219,25 @@ def render_answer_and_evidence(question: str, api_ok: bool):
 
 
 # ===== 사이드바 =====
+def go_home():
+    # 쿼리/문서 상태 초기화
+    try:
+        st.query_params.clear()
+    except Exception:
+        st.experimental_set_query_params()
+    # 질문/자동실행 상태 초기화
+    for k in list(st.session_state.keys()):
+        if k in ("q_input", "question_input", "last_q") or str(k).startswith("auto_ran::"):
+            try:
+                del st.session_state[k]
+            except Exception:
+                pass
+    st.rerun()
+
+
 with st.sidebar:
-    st.markdown("### 슬로우 컨텍스트.")
+    if st.button("슬로우 컨텍스트.", key="home_sidebar"):
+        go_home()
     st.markdown("Slow Context: 슬로우레터 기반의 맥락 분석 서비스.")
 
     api_ok = check_api()
@@ -239,7 +256,8 @@ with st.sidebar:
 
 # ===== 채팅 모드 =====
 if mode == "💬 채팅.":
-    st.title("슬로우 컨텍스트.")
+    if st.button("슬로우 컨텍스트.", key="home_main"):
+        go_home()
     st.markdown("Slow Context: 슬로우레터 기반의 맥락 분석 서비스.")
 
     # permalink 진입 시 단건 문서 뷰
@@ -313,13 +331,6 @@ if mode == "💬 채팅.":
     if (submitted and question) or should_auto_run:
         st.session_state[auto_key] = True
         render_answer_and_evidence(question, api_ok)
-
-        # 사용된 도구
-        if result.get("tool_calls"):
-            st.markdown("---")
-            tools_used = [tc["tool"] for tc in result["tool_calls"]]
-            st.markdown(f"**사용된 도구:** {', '.join(tools_used)}")
-            st.caption(f"추론 라운드: {result.get('rounds', 0)}")
 
     # 대화 이력
     if "history" not in st.session_state:
