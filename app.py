@@ -14,6 +14,7 @@ os.chdir(ROOT)
 import streamlit as st
 import requests
 import sqlite3
+from urllib.parse import quote
 
 API_URL = "http://localhost:8000"
 BASE_PUBLIC_URL = "https://slownews.net"
@@ -131,6 +132,51 @@ def get_trend(keyword, granularity="month"):
         return {}
 
 
+def render_answer_and_evidence(question: str, api_ok: bool):
+    if not api_ok:
+        st.error("❌ API Server disconnected.")
+        return
+
+    with st.spinner("분석 중... (최대 1~2분 소요)"):
+        result = query_agent(question)
+
+    st.markdown("---")
+    st.markdown("### 📝 답변:")
+    st.markdown(ensure_period(result.get("answer", "")))
+
+    st.markdown("---")
+    st.subheader("근거.")
+    try:
+        s = requests.post(
+            f"{API_URL}/search",
+            json={"query": question, "top_k": 10},
+            timeout=30,
+        )
+        payload = s.json() if s.status_code == 200 else {"results": []}
+        refs = payload.get("results", []) or []
+    except Exception:
+        refs = []
+
+    if not refs:
+        st.caption("관련 문서를 찾지 못했다.")
+    else:
+        for i, r in enumerate(refs, 1):
+            doc_id = r.get("doc_id", "")
+            title = r.get("title", "")
+            date = r.get("date", "")
+            q_enc = quote(question)
+            permalink = f"{BASE_PUBLIC_URL}/?doc={doc_id}&q={q_enc}" if doc_id else ""
+
+            st.markdown(f"{i}. ({date}) {title}.")
+            if doc_id:
+                st.caption(f"doc_id. {doc_id}.")
+            if permalink:
+                st.caption(f"permalink. {permalink}.")
+
+            st.markdown(r.get("content", ""))
+            st.markdown("---")
+
+
 # ===== 사이드바 =====
 with st.sidebar:
     st.markdown("### 슬로우 컨텍스트.")
@@ -162,28 +208,40 @@ if mode == "💬 채팅.":
         qp = st.experimental_get_query_params()  # 구버전 호환
 
     doc_param = None
+    q_param = None
     try:
         doc_param = qp.get("doc")
+        q_param = qp.get("q")
         if isinstance(doc_param, list):
             doc_param = doc_param[0] if doc_param else None
+        if isinstance(q_param, list):
+            q_param = q_param[0] if q_param else None
     except Exception:
         doc_param = None
+        q_param = None
 
     if doc_param:
         doc = get_doc(str(doc_param))
         if doc:
             st.markdown("---")
-            st.subheader("문서.")
+            # 문서 화면에서는 제목을 헤더로 올린다.
+            st.header(f"{doc.get('title','')}")
             st.caption(f"{doc.get('date','')} | {doc.get('doc_id','')}")
-            st.markdown(doc.get("title", ""))
             with st.expander("원문.", expanded=True):
                 st.markdown(doc.get("content", ""))
-            # 뒤로가기(쿼리 제거)
             if st.button("목록으로."):
                 try:
-                    st.query_params.clear()
+                    if q_param:
+                        st.query_params.clear()
+                        st.query_params["q"] = q_param
+                    else:
+                        st.query_params.clear()
                 except Exception:
-                    st.experimental_set_query_params()
+                    # 구버전
+                    if q_param:
+                        st.experimental_set_query_params(q=q_param)
+                    else:
+                        st.experimental_set_query_params()
                 st.rerun()
         else:
             st.warning("문서를 찾지 못했다.")
@@ -193,50 +251,21 @@ if mode == "💬 채팅.":
     # 질문 입력 (Enter로 제출 가능하도록 form 사용)
     default_q = st.session_state.pop("question_input", "")
 
+    # q= 파라미터가 있으면 질문을 복원한다.
+    if q_param and not default_q:
+        default_q = str(q_param)
+
     with st.form("query_form", clear_on_submit=False):
         question = st.text_input("질문을 입력하세요:", value=default_q, key="q_input")
         submitted = st.form_submit_button("🔍 분석하기", type="primary", disabled=not api_ok)
 
-    if submitted and question:
-        with st.spinner("분석 중... (최대 1~2분 소요)"):
-            result = query_agent(question)
+    # q=로 들어온 경우, 1회 자동 실행.
+    auto_key = f"auto_ran::{question}"
+    should_auto_run = bool(q_param) and bool(question) and not st.session_state.get(auto_key)
 
-        # 답변 표시
-        st.markdown("---")
-        st.markdown("### 📝 답변:")
-        st.markdown(ensure_period(result.get("answer", "")))
-
-        # 근거(검색 결과) 기본 10개를 바로 노출
-        st.markdown("---")
-        st.subheader("근거.")
-        try:
-            s = requests.post(
-                f"{API_URL}/search",
-                json={"query": question, "top_k": 10},
-                timeout=30,
-            )
-            payload = s.json() if s.status_code == 200 else {"results": []}
-            refs = payload.get("results", []) or []
-        except Exception:
-            refs = []
-
-        if not refs:
-            st.caption("관련 문서를 찾지 못했다.")
-        else:
-            for i, r in enumerate(refs, 1):
-                doc_id = r.get("doc_id", "")
-                title = r.get("title", "")
-                date = r.get("date", "")
-                permalink = f"{BASE_PUBLIC_URL}/?doc={doc_id}" if doc_id else ""
-
-                st.markdown(f"{i}. ({date}) {title}.")
-                if doc_id:
-                    st.caption(f"doc_id. {doc_id}.")
-                if permalink:
-                    st.caption(f"permalink. {permalink}.")
-
-                st.markdown(r.get("content", ""))
-                st.markdown("---")
+    if (submitted and question) or should_auto_run:
+        st.session_state[auto_key] = True
+        render_answer_and_evidence(question, api_ok)
 
         # 사용된 도구
         if result.get("tool_calls"):
