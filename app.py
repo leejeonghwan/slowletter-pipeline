@@ -359,8 +359,7 @@ if mode == "채팅.":
 # ===== 타임라인 모드 =====
 elif mode == "타임라인.":
     st.markdown(f"# [슬로우 컨텍스트.]({HOME_URL})")
-    st.markdown("Slow Context.")
-    st.markdown("이슈의 타임라인.")
+    st.markdown("Slow Context: 이슈의 타임라인.")
 
     col1, col2 = st.columns([3, 1])
     with col1:
@@ -399,8 +398,7 @@ elif mode == "타임라인.":
 # ===== 트렌드 모드 =====
 elif mode == "트렌드.":
     st.markdown(f"# [슬로우 컨텍스트.]({HOME_URL})")
-    st.markdown("Slow Context.")
-    st.markdown("이슈의 구조와 맥락 읽기.")
+    st.markdown("Slow Context: 이슈의 구조와 맥락 읽기.")
 
     col1, col2 = st.columns([3, 1])
     with col1:
