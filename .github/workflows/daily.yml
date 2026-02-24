@@ -1,7 +1,9 @@
 name: Daily Slowletter Pipeline
 on:
   schedule:
-    - cron: '0 22 * * 0-4'
+    # GitHub Actions cron is in UTC.
+    # 23:30 UTC = 08:30 KST (다음날 아침)
+    - cron: '30 23 * * 0-4'
   workflow_dispatch:
 jobs:
   run-pipeline:
