@@ -265,10 +265,13 @@ def render_answer_and_evidence(question: str, api_ok: bool):
             st.markdown("---")
 
 
+from typing import List
+
+
 def render_query_bar(
     text_key: str,
-    select_key: str | None = None,
-    select_options: list[str] | None = None,
+    select_key: Optional[str] = None,
+    select_options: Optional[List[str]] = None,
     disabled: bool = False,
 ):
     """모든 화면에서 같은 위치/형태의 입력 바를 만든다."""
