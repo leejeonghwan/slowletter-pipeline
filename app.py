@@ -104,7 +104,10 @@ def check_api():
         return False
 
 
-def get_archive_count() -> int | None:
+from typing import Optional
+
+
+def get_archive_count() -> Optional[int]:
     """로컬 SQLite 기준 문서 수를 반환합니다(가능하면 자동 표시)."""
     try:
         conn = sqlite3.connect("data/processed/entities.db")
