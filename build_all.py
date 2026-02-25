@@ -61,7 +61,9 @@ def main():
         start = time.time()
 
         from indexing.embedder import build_index
-        build_index(csv_path, str(VECTOR_INDEX_DIR), openai_key)
+        # 기본은 증분 임베딩. 전체 재빌드가 필요하면 FULL_REBUILD_VECTOR=1로 실행.
+        recreate = os.getenv("FULL_REBUILD_VECTOR", "0") == "1"
+        build_index(csv_path, str(VECTOR_INDEX_DIR), openai_key, incremental=True, recreate=recreate)
 
         print(f"완료: {time.time() - start:.1f}초")
     else:

@@ -93,12 +93,21 @@ class VectorStore:
         """로컬 파일 기반 Qdrant 클라이언트를 초기화합니다."""
         self.client = QdrantClient(path=path)
 
-    def create_collection(self, dim: int = 3072):
-        """컬렉션을 생성합니다."""
-        # 기존 컬렉션 삭제
+    def collection_exists(self) -> bool:
         collections = [c.name for c in self.client.get_collections().collections]
-        if self.COLLECTION_NAME in collections:
+        return self.COLLECTION_NAME in collections
+
+    def create_collection(self, dim: int = 3072, recreate: bool = False):
+        """컬렉션을 생성합니다.
+
+        recreate=True면 기존 컬렉션을 삭제 후 재생성합니다.
+        """
+        collections = [c.name for c in self.client.get_collections().collections]
+        if self.COLLECTION_NAME in collections and recreate:
             self.client.delete_collection(self.COLLECTION_NAME)
+
+        if self.COLLECTION_NAME in collections and not recreate:
+            return
 
         self.client.create_collection(
             collection_name=self.COLLECTION_NAME,
@@ -123,7 +132,10 @@ class VectorStore:
         payloads: list[dict],
         batch_size: int = 100,
     ):
-        """문서를 벡터 저장소에 삽입합니다."""
+        """문서를 벡터 저장소에 삽입합니다.
+
+        Point id는 doc_id(문서 고유키)를 그대로 사용합니다.
+        """
         for i in range(0, len(doc_ids), batch_size):
             batch_ids = doc_ids[i:i + batch_size]
             batch_embeddings = embeddings[i:i + batch_size]
@@ -131,13 +143,11 @@ class VectorStore:
 
             points = [
                 PointStruct(
-                    id=idx + i,
+                    id=did,
                     vector=emb,
                     payload={**payload, "doc_id": did},
                 )
-                for idx, (did, emb, payload) in enumerate(
-                    zip(batch_ids, batch_embeddings, batch_payloads)
-                )
+                for (did, emb, payload) in zip(batch_ids, batch_embeddings, batch_payloads)
             ]
             self.client.upsert(
                 collection_name=self.COLLECTION_NAME,
@@ -145,6 +155,31 @@ class VectorStore:
             )
 
         print(f"Upserted {len(doc_ids)} documents to vector store")
+
+    def get_existing_hashes(self, limit: int = 2000) -> dict:
+        """현재 컬렉션에 들어있는 문서들의 content_hash를 가져옵니다."""
+        existing: dict[str, str] = {}
+        if not self.collection_exists():
+            return existing
+
+        next_offset = None
+        while True:
+            points, next_offset = self.client.scroll(
+                collection_name=self.COLLECTION_NAME,
+                limit=limit,
+                offset=next_offset,
+                with_payload=True,
+                with_vectors=False,
+            )
+            for p in points:
+                pid = str(p.id)
+                payload = p.payload or {}
+                h = str(payload.get("content_hash", ""))
+                if pid:
+                    existing[pid] = h
+            if next_offset is None:
+                break
+        return existing
 
     def search(
         self,
@@ -196,9 +231,37 @@ class VectorStore:
         ]
 
 
-def build_index(csv_path: str, vector_dir: str, openai_api_key: str):
-    """CSV에서 벡터 인덱스를 구축합니다."""
+def _hash_text(t: str) -> str:
+    import hashlib
+
+    return hashlib.sha1((t or "").encode("utf-8", errors="ignore")).hexdigest()
+
+
+def build_index(
+    csv_path: str,
+    vector_dir: str,
+    openai_api_key: str,
+    incremental: bool = True,
+    recreate: bool = False,
+):
+    """CSV에서 벡터 인덱스를 구축합니다.
+
+    - incremental=True: 기존 Qdrant 컬렉션이 있으면 doc_id/content_hash 기준으로 증분 임베딩
+    - recreate=True: 벡터 컬렉션을 삭제 후 전체 재생성
+
+    기본은 증분(incremental)이며, 일주일에 한 번 등 필요할 때 recreate를 사용합니다.
+    """
     print("=== Vector Index Build ===")
+
+    # 0) store 준비
+    store = VectorStore(vector_dir)
+    store.create_collection(dim=3072, recreate=recreate)
+
+    existing_hashes = {}
+    if incremental and not recreate:
+        print("Loading existing vector index (hashes)...")
+        existing_hashes = store.get_existing_hashes()
+        print(f"Existing points: {len(existing_hashes)}")
 
     # 1. CSV 로드
     print("Loading CSV...")
@@ -208,21 +271,21 @@ def build_index(csv_path: str, vector_dir: str, openai_api_key: str):
     print(f"Loaded {len(rows)} documents")
 
     # 2. 임베딩 텍스트 준비 (제목 + 콘텐츠 + 주요 엔티티)
-    texts = []
-    doc_ids = []
-    payloads = []
+    texts: list[str] = []
+    doc_ids: list[str] = []
+    payloads: list[dict] = []
 
+    skipped = 0
     for row in rows:
-        doc_id = row.get("ID", "")
-        title = row.get("title", "")
-        content = row.get("cleaned_content_for_api", "")
+        doc_id = (row.get("ID", "") or "").strip()
+        title = (row.get("title", "") or "").strip()
+        content = (row.get("cleaned_content_for_api", "") or "").strip()
         if not doc_id or not content:
             continue
 
-        # 임베딩용 텍스트: 제목 + 콘텐츠 + 주요 엔티티
-        persons = row.get("solar_persons", "")
-        orgs = row.get("solar_organizations", "")
-        concepts = row.get("solar_concepts", "")
+        persons = (row.get("solar_persons", "") or "").strip()
+        orgs = (row.get("solar_organizations", "") or "").strip()
+        concepts = (row.get("solar_concepts", "") or "").strip()
 
         embed_text = f"{title}\n{content}"
         if persons:
@@ -230,10 +293,17 @@ def build_index(csv_path: str, vector_dir: str, openai_api_key: str):
         if concepts:
             embed_text += f"\n키워드: {concepts}"
 
+        h = _hash_text(embed_text)
+        if incremental and not recreate:
+            old = existing_hashes.get(doc_id)
+            if old and old == h:
+                skipped += 1
+                continue
+
         texts.append(embed_text)
         doc_ids.append(doc_id)
         payloads.append({
-            "date": row.get("date", "")[:10],
+            "date": (row.get("date", "") or "")[:10],
             "title": title,
             "content": content,
             "persons": persons,
@@ -241,20 +311,23 @@ def build_index(csv_path: str, vector_dir: str, openai_api_key: str):
             "concepts": concepts,
             "events": row.get("solar_events", ""),
             "locations": row.get("solar_locations", ""),
-            # 통합 엔티티 필드 (필터링용)
+            "content_hash": h,
             "all_entities": "; ".join(filter(None, [persons, orgs, concepts])),
         })
 
     # 3. 임베딩 생성
-    print(f"Generating embeddings for {len(texts)} documents...")
+    print(f"Embedding targets: {len(texts)} (skipped unchanged: {skipped})")
+    if not texts:
+        print("No changes. Vector index is up to date.")
+        print("=== Build Complete ===")
+        return
+
     embedder = SlowLetterEmbedder(openai_api_key)
     embeddings = embedder.embed_texts(texts)
     print(f"Generated {len(embeddings)} embeddings")
 
     # 4. 벡터 저장소에 삽입
-    print("Building vector index...")
-    store = VectorStore(vector_dir)
-    store.create_collection()
+    print("Upserting to vector store...")
     store.upsert_documents(doc_ids, embeddings, payloads)
 
     print("=== Build Complete ===")
