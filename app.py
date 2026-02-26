@@ -43,6 +43,7 @@ st.markdown(
       /* main 영역 링크는 슬로우 컬러 */
       [data-testid="stAppViewContainer"] a {
         color: #fdad00 !important;
+        text-decoration: none !important;
       }
 
       /* 입력창 스타일 (검정 배경에서 가독성) */
