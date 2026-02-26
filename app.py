@@ -255,13 +255,13 @@ def render_answer_and_evidence(question: str, api_ok: bool):
             q_enc = quote(question)
             permalink = f"{BASE_PUBLIC_URL}/?doc={doc_id}&q={q_enc}" if doc_id else ""
 
-            st.markdown(f"{i}. ({date}) {title}.")
+            st.markdown(f"{i}. ({date}) {ensure_period(title)}")
             if doc_id:
                 st.caption(f"doc_id. {doc_id}.")
             if permalink:
                 st.caption(f"permalink. {permalink}.")
 
-            st.markdown(r.get("content", ""))
+            st.markdown(ensure_period(r.get("content", "")))
             st.markdown("---")
 
 
