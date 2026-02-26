@@ -38,6 +38,6 @@
   <string>/Users/slowclaw/slowletter-pipeline/data/logs/launchd_daily_update.err</string>
 
   <key>RunAtLoad</key>
-  <true/>
+  <false/>
 </dict>
 </plist>
