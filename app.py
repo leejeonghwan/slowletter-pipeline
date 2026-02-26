@@ -127,9 +127,30 @@ def ensure_period(text: str) -> str:
     t = text.strip()
     if not t:
         return "."
-    if t.endswith((".", "!", "?", "…", "。")):
+    if t.endswith((".", "!", "?", "…", "。", ":", ")", "\"", "%")):
         return t
     return t + "."
+
+
+def fix_answer_lines(answer: str) -> str:
+    """답변의 각 줄에 마침표 추가"""
+    if not answer:
+        return answer
+    
+    lines = answer.split("\n")
+    fixed_lines = []
+    
+    for line in lines:
+        # 빈 줄이나 제목(#), 구분선(---)은 그대로
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#") or stripped.startswith("---"):
+            fixed_lines.append(line)
+            continue
+        
+        # 나머지 줄은 마침표 보정
+        fixed_lines.append(ensure_period(line))
+    
+    return "\n".join(fixed_lines)
 
 
 def query_agent(question):
@@ -229,7 +250,7 @@ def render_answer_and_evidence(question: str, api_ok: bool):
 
     st.markdown("---")
     st.markdown("### 📝 답변:")
-    st.markdown(ensure_period(result.get("answer", "")))
+    st.markdown(fix_answer_lines(result.get("answer", "")))
 
     st.markdown("---")
     st.subheader("근거.")
