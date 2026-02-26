@@ -111,6 +111,482 @@ let filtered = [];
 let currentPage = 1;
 let searchDebounce = null;
 let selectedDate = null;
+let singleArticleMode = false;
+
+const TYPE_MAP = {
+  person: { label: '인물', cls: 'tag-person' },
+  org: { label: '조직', cls: 'tag-org' }
+};
+
+function getUrlParam(name) {
+  const params = new URLSearchParams(window.location.search);
+  return params.get(name);
+}
+
+function parseEntities(str) {
+  if (!str || str.trim() === '') return [];
+  return str.split(';').map(s => s.trim()).filter(s => s.length > 0);
+}
+
+function loadData(retryCount) {
+  retryCount = retryCount || 0;
+  const csvPath = 'data/raw/slowletter_web.csv';
+  let rowCount = 0;
+
+  Papa.parse(csvPath, {
+    download: true,
+    header: true,
+    skipEmptyLines: true,
+    downloadRequestHeaders: {},
+    chunk: function(results) {
+      for (const row of results.data) {
+        if (!row.title || !row.date) continue;
+        const item = {
+          id: row.id || '',
+          date: row.date || '',
+          title: row.title || '',
+          content: row.content || '',
+          persons: parseEntities(row.persons),
+          orgs: parseEntities(row.orgs),
+        };
+        item._search = (item.title + ' ' + item.content + ' ' +
+          item.persons.join(' ') + ' ' + item.orgs.join(' ')).toLowerCase();
+        allData.push(item);
+      }
+      rowCount += results.data.length;
+      const pct = Math.min(95, Math.round(rowCount / 180));
+      document.getElementById('progressFill').style.width = pct + '%';
+    },
+    complete: function() {
+      document.getElementById('progressFill').style.width = '100%';
+      allData.sort((a, b) => b.date.localeCompare(a.date));
+      
+      // URL 파라미터 체크
+      const docId = getUrlParam('doc');
+      if (docId) {
+        renderSingleArticle(docId);
+      } else {
+        applyFilters();
+      }
+      
+      document.getElementById('loading').style.display = 'none';
+    },
+    error: function(err) {
+      if (retryCount < 2) {
+        allData = [];
+        document.getElementById('loading').innerHTML =
+          '<div class="loading"><div class="loading-spinner"></div><div class="loading-text">재시도 중... (' + (retryCount + 1) + '/2)</div><div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div></div>';
+        setTimeout(function() { loadData(retryCount + 1); }, 1500);
+      } else {
+        document.getElementById('loading').innerHTML =
+          '<div style="color:#dc2626;text-align:left;padding:2rem 0;">' +
+          'CSV 파일을 불러올 수 없습니다.<br>' +
+          '<small style="color:#a8a29e">네트워크 연결을 확인하고 페이지를 새로고침 해주세요.</small>' +
+          '<br><button onclick="location.reload()" style="margin-top:1rem;padding:0.4rem 1rem;border:1px solid #e7e5e4;border-radius:6px;background:#fff;cursor:pointer;font-size:0.85rem;">새로고침</button></div>';
+      }
+    }
+  });
+}
+
+function countOccurrences(text, query) {
+  let count = 0;
+  let pos = 0;
+  while ((pos = text.indexOf(query, pos)) !== -1) { count++; pos += query.length; }
+  return count;
+}
+
+function applyFilters() {
+  singleArticleMode = false;
+  const query = document.getElementById('searchInput').value.toLowerCase().trim();
+  const sortMode = document.getElementById('sortSelect').value;
+
+  filtered = allData.filter(item => {
+    if (!query && selectedDate && item.date !== selectedDate) return false;
+    if (query && !item._search.includes(query)) return false;
+    return true;
+  });
+
+  if (sortMode === 'newest') {
+    filtered.sort((a, b) => b.date.localeCompare(a.date));
+  } else if (sortMode === 'oldest') {
+    filtered.sort((a, b) => a.date.localeCompare(b.date));
+  } else if (sortMode === 'relevance' && query) {
+    filtered.sort((a, b) => {
+      const aTitle = a.title.toLowerCase().includes(query) ? 10 : 0;
+      const bTitle = b.title.toLowerCase().includes(query) ? 10 : 0;
+      const aCount = countOccurrences(a._search, query);
+      const bCount = countOccurrences(b._search, query);
+      const diff = (bTitle + bCount) - (aTitle + aCount);
+      return diff !== 0 ? diff : b.date.localeCompare(a.date);
+    });
+  }
+
+  currentPage = 1;
+  render();
+}
+
+function viewArticle(id) {
+  const url = new URL(window.location);
+  url.searchParams.set('doc', id);
+  window.history.pushState({}, '', url);
+  renderSingleArticle(id);
+}
+
+function renderSingleArticle(id) {
+  singleArticleMode = true;
+  const item = allData.find(a => a.id === id);
+  
+  if (!item) {
+    document.getElementById('content').innerHTML = 
+      '<div style="text-align:left;padding:3rem 0;color:#a8a29e">기사를 찾을 수 없습니다.<br><br>' +
+      '<button onclick="backToList()" style="padding:0.5rem 1rem;border:1px solid #e7e5e4;border-radius:6px;background:#fff;cursor:pointer;">목록으로</button></div>';
+    document.getElementById('statsInner').innerHTML = '<span>기사를 찾을 수 없습니다</span>';
+    return;
+  }
+  
+  const formattedContent = formatContent(item.content);
+  const shareUrl = window.location.origin + window.location.pathname + '?doc=' + encodeURIComponent(item.id);
+  
+  document.getElementById('statsInner').innerHTML = 
+    `<span>${item.date}</span>
+     <button onclick="copyLink('${escapeAttr(shareUrl)}')" style="padding:0.3rem 0.6rem;border:1px solid rgba(0,0,0,0.18);border-radius:4px;background:#fff;cursor:pointer;font-size:0.75rem;">링크 복사</button>`;
+  
+  const html = `
+    <div style="margin-bottom:1rem;">
+      <button onclick="backToList()" style="padding:0.5rem 1rem;border:1px solid #e7e5e4;border-radius:6px;background:#fff;cursor:pointer;font-size:0.9rem;">← 목록으로</button>
+    </div>
+    <div class="article" style="padding:1.5rem;">
+      <div class="article-date">${item.date}.</div>
+      <div class="article-title" style="font-size:1.6rem;margin-bottom:1rem;">${escapeHtml(item.title)}</div>
+      <div class="article-snippet" style="font-size:0.95rem;line-height:1.8;white-space:pre-wrap;">${formattedContent}</div>
+      <div class="tags" style="margin-top:1rem;">
+        ${renderTags(item.persons, 'person')}
+        ${renderTags(item.orgs, 'org')}
+      </div>
+    </div>
+  `;
+  
+  document.getElementById('content').innerHTML = html;
+  window.scrollTo({ top: 0, behavior: 'instant' });
+}
+
+function backToList() {
+  window.history.pushState({}, '', window.location.pathname);
+  singleArticleMode = false;
+  applyFilters();
+}
+
+function copyLink(url) {
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(url).then(() => {
+      alert('링크가 복사되었습니다');
+    }).catch(() => {
+      alert('링크 복사 실패');
+    });
+  } else {
+    const input = document.createElement('input');
+    input.value = url;
+    document.body.appendChild(input);
+    input.select();
+    document.execCommand('copy');
+    document.body.removeChild(input);
+    alert('링크가 복사되었습니다');
+  }
+}
+
+function render() {
+  const totalPages = Math.ceil(filtered.length / PER_PAGE);
+  const start = (currentPage - 1) * PER_PAGE;
+  const pageItems = filtered.slice(start, start + PER_PAGE);
+  const query = document.getElementById('searchInput').value.toLowerCase().trim();
+
+  document.getElementById('statsInner').innerHTML =
+    `<span>전체 ${allData.length.toLocaleString()}건 가운데 ${filtered.length.toLocaleString()}건.${(!query && selectedDate) ? ' (날짜: ' + selectedDate + ')' : ''}</span>
+     <span>${currentPage} / ${Math.max(1, totalPages)}</span>`;
+
+  const contentEl = document.getElementById('content');
+  if (pageItems.length === 0) {
+    contentEl.innerHTML = '<div style="text-align:left;padding:3rem 0;color:#a8a29e">검색 결과가 없습니다</div>';
+    return;
+  }
+
+  let html = '';
+  for (const item of pageItems) {
+    const formattedContent = formatContent(item.content);
+    html += `<div class="article">
+      <div class="article-date"><button class="date-link" onclick="filterDate('${item.date}')">${item.date}.</button></div>
+      <div class="article-title" style="cursor:pointer;" onclick="viewArticle('${escapeAttr(item.id)}')" title="기사 보기">${escapeHtml(item.title)}</div>
+      <div class="article-snippet" id="snippet-${item.id}">${formattedContent}</div>
+      <div class="tags">
+        ${renderTags(item.persons, 'person')}
+        ${renderTags(item.orgs, 'org')}
+      </div>
+    </div>`;
+  }
+
+  html += '<div class="pagination">';
+  html += `<button class="page-btn" onclick="goPage(1)" ${currentPage === 1 ? 'disabled' : ''}>&laquo;</button>`;
+  html += `<button class="page-btn" onclick="goPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>&lsaquo;</button>`;
+
+  const maxVisible = 5;
+  let pStart = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+  let pEnd = Math.min(totalPages, pStart + maxVisible - 1);
+  if (pEnd - pStart < maxVisible - 1) pStart = Math.max(1, pEnd - maxVisible + 1);
+
+  for (let i = pStart; i <= pEnd; i++) {
+    html += `<button class="page-btn ${i === currentPage ? 'active' : ''}" onclick="goPage(${i})">${i}</button>`;
+  }
+
+  html += `<button class="page-btn" onclick="goPage(${currentPage + 1})" ${currentPage >= totalPages ? 'disabled' : ''}>&rsaquo;</button>`;
+  html += `<button class="page-btn" onclick="goPage(${totalPages})" ${currentPage >= totalPages ? 'disabled' : ''}>&raquo;</button>`;
+  html += '</div>';
+
+  contentEl.innerHTML = html;
+}
+
+function formatContent(text) {
+  let safe = text.replace(/<br\s*\/?>/g, '%%BR%%');
+  const links = [];
+  safe = safe.replace(/<a\s+href="(https?:\/\/[^"]+)"[^>]*>([^<]*)<\/a>/g, (m, url, label) => {
+    links.push({label, url});
+    return '%%LINK' + (links.length - 1) + '%%';
+  });
+  safe = safe.replace(/\[([^\]]*)\]\((https?:\/\/[^)]+)\)/g, (m, label, url) => {
+    links.push({label, url});
+    return '%%LINK' + (links.length - 1) + '%%';
+  });
+  safe = escapeHtml(safe);
+  safe = safe.replace(/%%LINK(\d+)%%/g, (m, i) => {
+    const l = links[parseInt(i)];
+    return '<a href="' + l.url + '" target="_blank" rel="noopener">' + escapeHtml(l.label) + '</a>';
+  });
+  safe = safe.replace(/%%BR%%/g, '<br>');
+  return safe;
+}
+
+function renderTags(entities, type) {
+  const info = TYPE_MAP[type];
+  return entities.map(e =>
+    `<span class="tag ${info.cls}" onclick="searchEntity('${escapeAttr(e)}')" title="${info.label}: ${escapeAttr(e)}">${escapeHtml(e)}</span>`
+  ).join('');
+}
+
+function escapeHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function escapeAttr(s) {
+  return s.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+}
+
+function searchEntity(name) {
+  if (singleArticleMode) {
+    backToList();
+  }
+  selectedDate = null;
+  const searchInput = document.getElementById('searchInput');
+  if (searchInput) {
+    searchInput.value = name;
+    searchInput.placeholder = DEFAULT_SEARCH_PLACEHOLDER;
+  }
+  applyFilters();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function goPage(n) {
+  const totalPages = Math.ceil(filtered.length / PER_PAGE);
+  currentPage = Math.max(1, Math.min(n, totalPages));
+  render();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function resetToHome() {
+  if (singleArticleMode) {
+    backToList();
+    return;
+  }
+  const searchInput = document.getElementById('searchInput');
+  const sortSelect = document.getElementById('sortSelect');
+  selectedDate = null;
+  if (searchInput) {
+    searchInput.value = '';
+    searchInput.placeholder = DEFAULT_SEARCH_PLACEHOLDER;
+  }
+  if (sortSelect) sortSelect.value = 'newest';
+  applyFilters();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function filterDate(dateStr) {
+  if (singleArticleMode) {
+    backToList();
+  }
+  selectedDate = dateStr;
+
+  const searchInput = document.getElementById('searchInput');
+  const sortSelect = document.getElementById('sortSelect');
+  if (searchInput) {
+    searchInput.value = '';
+    searchInput.placeholder = `날짜: ${selectedDate}`;
+  }
+  if (sortSelect) sortSelect.value = 'newest';
+
+  applyFilters();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// Event listeners
+document.getElementById('searchInput').addEventListener('input', () => {
+  clearTimeout(searchDebounce);
+  searchDebounce = setTimeout(() => {
+    const q = document.getElementById('searchInput').value.toLowerCase().trim();
+    if (q) {
+      selectedDate = null;
+      document.getElementById('searchInput').placeholder = DEFAULT_SEARCH_PLACEHOLDER;
+    }
+    applyFilters();
+  }, 300);
+});
+
+document.getElementById('sortSelect').addEventListener('change', applyFilters);
+
+document.getElementById('homeTitle').addEventListener('click', (e) => {
+  e.preventDefault();
+  resetToHome();
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === '/' && document.activeElement.tagName !== 'INPUT') {
+    e.preventDefault();
+    document.getElementById('searchInput').focus();
+  }
+  if (e.key === 'Escape' && singleArticleMode) {
+    backToList();
+  }
+});
+
+// 뒤로가기 지원
+window.addEventListener('popstate', () => {
+  const docId = getUrlParam('doc');
+  if (docId) {
+    renderSingleArticle(docId);
+  } else {
+    singleArticleMode = false;
+    applyFilters();
+  }
+});
+
+loadData();
+
+</script>
+<style>
+  :root {
+    --bg: #fdad00; --surface: #ffffff; --border: #e7e5e4;
+    --text: #1c1917; --text2: #57534e; --accent: #0369a1;
+    --accent-bg: #e0f2fe; --tag-person: #fdad00; --tag-org: #bbf7d0;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+
+  .header { background: var(--bg); border-bottom: 1px solid rgba(0,0,0,0.08); padding: 1.5rem 2rem; }
+  .header-inner { max-width: 720px; margin: 0 auto; padding: 0 2rem; }
+  .header h1 { font-size: 1.8rem; font-weight: 800; cursor: pointer; }
+  .header h1:hover { text-decoration: underline; text-decoration-thickness: 2px; }
+
+  .controls { background: var(--bg); border-bottom: 1px solid rgba(0,0,0,0.08); padding: 1rem 2rem; }
+  .controls-inner { max-width: 720px; margin: 0 auto; padding: 0 2rem; display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; }
+  .search-box { flex: 1; min-width: 200px; padding: 0.6rem 0.85rem; border: 1px solid rgba(0,0,0,0.18); border-radius: 6px; font-size: 0.95rem; outline: none; background: #ffffff; color: var(--text); }
+  .search-box::placeholder { color: rgba(0,0,0,0.55); }
+  .search-box:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-bg); background: #ffffff; }
+
+  .stats { background: var(--bg); padding: 0.75rem 2rem; font-size: 0.8rem; color: var(--text2); }
+  .stats-inner { max-width: 720px; margin: 0 auto; padding: 0 2rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; }
+
+  .content { max-width: 720px; margin: 0 auto; padding: 1rem 2rem 3rem; }
+
+  .article { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem; margin-bottom: 0.75rem; transition: box-shadow 0.15s; }
+  .article:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+  .article-date { font-size: 0.75rem; color: var(--text2); margin-bottom: 0.25rem; }
+  .article-date .date-link { color: inherit; text-decoration: none; cursor: pointer; background: transparent; border: none; padding: 0; font: inherit; }
+  .article-date .date-link:hover { text-decoration: underline; }
+  .article-title { font-size: 1.4rem; font-weight: 600; margin-bottom: 0.5rem; }
+  .article-snippet { font-size: 0.85rem; color: var(--text2); margin-bottom: 0.75rem; }
+  .article-snippet a { color: var(--accent); text-decoration: none; }
+  .article-snippet a:hover { text-decoration: underline; }
+
+  .tags { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+  .tag { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 12px; font-size: 0.7rem; cursor: pointer; }
+  .tag:hover { opacity: 0.8; filter: brightness(0.95); }
+  .tag-person { background: var(--tag-person); }
+  .tag-org { background: var(--tag-org); }
+
+  .pagination { display: flex; gap: 0.5rem; margin-top: 1.5rem; flex-wrap: wrap; }
+  .page-btn { padding: 0.4rem 0.8rem; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); cursor: pointer; font-size: 0.85rem; }
+  .page-btn:hover { background: #f5f5f4; }
+  .page-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
+  .page-btn:disabled { opacity: 0.4; cursor: default; }
+
+  .loading { text-align: center; padding: 4rem 2rem; }
+  .loading-spinner { display: inline-block; width: 32px; height: 32px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-text { margin-top: 1rem; color: var(--text2); font-size: 0.9rem; }
+  .progress-bar { width: 200px; height: 4px; background: var(--border); border-radius: 2px; margin: 0.75rem auto 0; overflow: hidden; }
+  .progress-fill { height: 100%; background: var(--accent); transition: width 0.3s; border-radius: 2px; }
+
+  @media (max-width: 640px) {
+    .controls { padding: 0.75rem 1rem; }
+    .content { padding: 0.75rem 1rem 3rem; }
+    .stats { padding: 0.5rem 1rem; }
+    .header { padding: 1.2rem 1rem; }
+    .header h1 { font-size: 1.5rem; }
+    .article-title { font-size: 1.2rem; }
+    .header-inner, .controls-inner, .stats-inner { padding: 0 1rem; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-inner">
+    <h1 id="homeTitle" title="검색 초기화">SlowLetter Finder.</h1>
+  </div>
+</div>
+
+<div class="controls">
+  <div class="controls-inner">
+    <input type="text" class="search-box" id="searchInput" placeholder="">
+    <select id="sortSelect" style="padding:0.6rem 0.6rem;border:1px solid rgba(0,0,0,0.18);border-radius:6px;font-size:0.85rem;background:#ffffff;color:var(--text);cursor:pointer;">
+      <option value="newest">최신순</option>
+      <option value="oldest">과거순</option>
+      <option value="relevance">관련도순</option>
+    </select>
+  </div>
+</div>
+
+<div class="stats" id="stats">
+  <div class="stats-inner" id="statsInner">
+    <span>데이터 로딩 중...</span>
+  </div>
+</div>
+
+<div class="content" id="content">
+  <div class="loading" id="loading">
+    <div class="loading-spinner"></div>
+    <div class="loading-text">데이터를 불러오는 중...</div>
+    <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+  </div>
+</div>
+
+<script>
+const PER_PAGE = 30;
+const DEFAULT_SEARCH_PLACEHOLDER = '';
+let allData = [];
+let filtered = [];
+let currentPage = 1;
+let searchDebounce = null;
+let selectedDate = null;
 
 const TYPE_MAP = {
   person: { label: '인물', cls: 'tag-person' },
