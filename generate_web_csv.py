@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import os
 import re
+import json
 import pandas as pd
 
 
@@ -33,6 +34,41 @@ def _normalize_date(value) -> str:
         return ""
     s = str(value)
     return s[:10]  # "YYYY-MM-DD"만
+
+
+def _load_entity_rules(repo_dir: str) -> dict:
+    """entity_rules.json 로드 (없으면 빈 dict 반환)"""
+    rules_path = os.path.join(repo_dir, "entity_rules.json")
+    if not os.path.exists(rules_path):
+        return {"person": {}, "org": {}}
+    try:
+        with open(rules_path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"[warn] entity_rules.json 로드 실패: {e}")
+        return {"person": {}, "org": {}}
+
+
+def _normalize_entities(value, entity_type: str, rules: dict) -> str:
+    """엔티티 정규화: 세미콜론 구분 문자열을 규칙에 따라 변환"""
+    if value is None or str(value).strip() == "":
+        return ""
+    
+    entities = [e.strip() for e in str(value).split(";") if e.strip()]
+    type_rules = rules.get(entity_type, {})
+    
+    # 정규화 적용
+    normalized = []
+    seen = set()
+    for entity in entities:
+        # 규칙에 매칭되면 변환
+        canonical = type_rules.get(entity, entity)
+        # 중복 제거 (대소문자 구분)
+        if canonical not in seen:
+            normalized.append(canonical)
+            seen.add(canonical)
+    
+    return "; ".join(normalized)
 
 
 def _normalize_content(value) -> str:
@@ -79,6 +115,10 @@ def main():
     if not os.path.exists(in_path):
         raise FileNotFoundError(f"입력 파일이 없습니다: {in_path}")
 
+    # 엔티티 정규화 규칙 로드
+    entity_rules = _load_entity_rules(repo_dir)
+    print(f"Loaded entity rules: {len(entity_rules.get('person', {}))} person, {len(entity_rules.get('org', {}))} org")
+
     df = pd.read_csv(in_path)
 
     required = ["ID", "date", "title", "cleaned_content_for_service", "solar_persons", "solar_organizations"]
@@ -91,8 +131,8 @@ def main():
         "date": df["date"].map(_normalize_date),
         "title": df["title"].astype(str),
         "content": df["cleaned_content_for_service"].map(_normalize_content),
-        "persons": df["solar_persons"],
-        "orgs": df["solar_organizations"],
+        "persons": df["solar_persons"].apply(lambda x: _normalize_entities(x, "person", entity_rules)),
+        "orgs": df["solar_organizations"].apply(lambda x: _normalize_entities(x, "org", entity_rules)),
     })
 
     out.to_csv(out_path, index=False)
