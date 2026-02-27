@@ -21,32 +21,47 @@ BASE_PUBLIC_URL = "https://slownews.net"
 
 st.set_page_config(page_title="슬로우 컨텍스트", page_icon="📰", layout="wide")
 
-# 스타일: index.html과 동일하게
+# 스타일: 배경 노랑, 본문 흰색 박스
 st.markdown(
     """
     <style>
-      /* === Layout alignment === */
+      /* === Layout === */
       section.main .block-container {
         padding-top: 2.25rem;
+        max-width: 800px;
       }
       section[data-testid="stSidebar"] > div {
-        padding-top: 2.25rem;
+        padding-top: 1.5rem;
       }
 
-      /* === Main theme === */
+      /* === Main theme: 노란 배경 === */
       html, body, [data-testid="stAppViewContainer"] {
-        background-color: #fafaf9;
+        background-color: #fdad00;
       }
+      
+      /* 본문은 흰색 박스 */
+      [data-testid="stVerticalBlock"] > div:has([data-testid="stMarkdownContainer"]),
+      [data-testid="stForm"],
+      .stTextInput,
+      .stMarkdown {
+        background-color: #ffffff;
+        padding: 1.5rem;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      }
+      
       [data-testid="stAppViewContainer"] * {
         color: #111111;
       }
-      /* main 영역 링크 */
+      
+      /* 링크 */
       [data-testid="stAppViewContainer"] a {
         color: #fdad00 !important;
         text-decoration: none !important;
       }
 
-      /* 입력창 스타일: 흰색 배경, 검정 글씨 (index.html과 동일) */
+      /* 입력창: 흰색 배경, 검정 글씨 */
       [data-testid="stTextInput"] input {
         background-color: #ffffff !important;
         color: #111111 !important;
@@ -72,22 +87,18 @@ st.markdown(
       /* 버튼 */
       button[kind="primary"],
       div.stButton > button[kind="primary"] {
-        background-color: #fdad00 !important;
-        border: 1px solid #fdad00 !important;
-        color: #111111 !important;
+        background-color: #111111 !important;
+        border: 1px solid #111111 !important;
+        color: #fdad00 !important;
+        font-weight: 600 !important;
       }
 
-      /* === Sidebar (index.html과 동일) === */
+      /* === Sidebar === */
       section[data-testid="stSidebar"] {
         background-color: #1c1917 !important;
       }
       section[data-testid="stSidebar"] * {
         color: #e7e5e4 !important;
-      }
-      section[data-testid="stSidebar"] h2,
-      section[data-testid="stSidebar"] h3 {
-        color: #fdad00 !important;
-        font-weight: 700 !important;
       }
       section[data-testid="stSidebar"] a {
         color: #e7e5e4 !important;
@@ -96,14 +107,28 @@ st.markdown(
       section[data-testid="stSidebar"] a:hover {
         background: #333 !important;
       }
-      section[data-testid="stSidebar"] [data-testid="stAlert"] * {
-        color: #111111 !important;
+      
+      /* 로고 이미지 */
+      section[data-testid="stSidebar"] img {
+        max-width: 180px;
+        margin-bottom: 1.5rem;
+        cursor: pointer;
       }
 
       /* Title */
-      h1 a, h1 a:visited {
+      h1 {
+        font-size: 1.8rem !important;
+        font-weight: 800 !important;
         color: #111111 !important;
-        text-decoration: none;
+        margin-bottom: 0.5rem !important;
+      }
+      
+      /* 본문 컨테이너 흰색 박스 */
+      div[data-testid="stMarkdownContainer"] {
+        background-color: #ffffff;
+        padding: 1.5rem;
+        border-radius: 8px;
+        margin-bottom: 1rem;
       }
     </style>
     """,
@@ -351,12 +376,12 @@ def render_query_bar(
     return text, sel, submitted
 
 
-# ===== 사이드바 (index.html과 동일) =====
+# ===== 사이드바 =====
 HOME_URL = f"{BASE_PUBLIC_URL}/"
 
 with st.sidebar:
-    st.markdown("## 슬로우 컨텍스트.")
-    st.markdown('<div style="font-size:0.75rem;color:#a8a29e;margin-bottom:1.5rem;">Slow Context.</div>', unsafe_allow_html=True)
+    # 로고 (클릭 시 홈으로)
+    st.markdown(f'<a href="/"><img src="/static/logo.jpg" alt="SlowNews" style="max-width:180px;margin-bottom:1.5rem;cursor:pointer;"/></a>', unsafe_allow_html=True)
 
     # 아카이브 수
     st.markdown('<div style="font-size:0.7rem;color:#a8a29e;margin-bottom:0.2rem;text-transform:uppercase;letter-spacing:0.05em;">아카이브.</div>', unsafe_allow_html=True)
@@ -384,13 +409,13 @@ with st.sidebar:
     st.markdown("---")
     st.markdown('<div style="font-size:0.65rem;color:#57534e;">slownews.net</div>', unsafe_allow_html=True)
 
-    # API 상태는 숨김 (필요시 로그로만 확인)
+    # API 상태는 숨김
     api_ok = check_api()
 
 
-# ===== 메인 (채팅 모드 전용) =====
-st.markdown(f"# [SlowLetter Context Analytics(AI).]({HOME_URL})")
-st.markdown("Slow Context: 슬로우레터 기반의 맥락 분석 서비스.")
+# ===== 메인 =====
+st.markdown("# Context Analytics(AI).")
+st.markdown("슬로우레터 기반의 맥락 분석 서비스.")
 
 # permalink 진입 시 단건 문서 뷰
 try:
