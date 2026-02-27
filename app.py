@@ -392,72 +392,72 @@ with st.sidebar:
 st.markdown(f"# [SlowLetter Context Analytics(AI).]({HOME_URL})")
 st.markdown("Slow Context: 슬로우레터 기반의 맥락 분석 서비스.")
 
-    # permalink 진입 시 단건 문서 뷰
-    try:
-        qp = st.query_params  # streamlit 최신
-    except Exception:
-        qp = st.experimental_get_query_params()  # 구버전 호환
+# permalink 진입 시 단건 문서 뷰
+try:
+    qp = st.query_params  # streamlit 최신
+except Exception:
+    qp = st.experimental_get_query_params()  # 구버전 호환
 
+doc_param = None
+q_param = None
+try:
+    doc_param = qp.get("doc")
+    q_param = qp.get("q")
+    if isinstance(doc_param, list):
+        doc_param = doc_param[0] if doc_param else None
+    if isinstance(q_param, list):
+        q_param = q_param[0] if q_param else None
+except Exception:
     doc_param = None
     q_param = None
-    try:
-        doc_param = qp.get("doc")
-        q_param = qp.get("q")
-        if isinstance(doc_param, list):
-            doc_param = doc_param[0] if doc_param else None
-        if isinstance(q_param, list):
-            q_param = q_param[0] if q_param else None
-    except Exception:
-        doc_param = None
-        q_param = None
 
-    # 채팅에서도 입력 바를 최상단(부제 아래) 고정.
-    default_q = st.session_state.pop("question_input", "")
-    if q_param and not default_q:
-        default_q = str(q_param)
+# 채팅에서도 입력 바를 최상단(부제 아래) 고정.
+default_q = st.session_state.pop("question_input", "")
+if q_param and not default_q:
+    default_q = str(q_param)
 
-    # Streamlit은 입력 시마다 rerun하므로, 매번 값을 덮어쓰면 타이핑이 막힌다.
-    if "q_input" not in st.session_state:
-        st.session_state["q_input"] = default_q
-    
-    # 개별 기사 페이지에서는 검색바 숨김
-    if not doc_param:
-        question, _, submitted = render_query_bar(text_key="q_input", disabled=not api_ok)
+# Streamlit은 입력 시마다 rerun하므로, 매번 값을 덮어쓰면 타이핑이 막힌다.
+if "q_input" not in st.session_state:
+    st.session_state["q_input"] = default_q
+
+# 개별 기사 페이지에서는 검색바 숨김
+if not doc_param:
+    question, _, submitted = render_query_bar(text_key="q_input", disabled=not api_ok)
+else:
+    question = ""
+    submitted = False
+
+if doc_param:
+    doc = get_doc(str(doc_param))
+    if doc:
+        st.markdown("---")
+        st.header(f"{doc.get('title','')}")
+        st.caption(f"{doc.get('date','')}")
+        # 불릿 앞 줄바꿈 <br> 변환
+        content = doc.get("content", "").replace("• ", "<br>• ")
+        st.markdown(content, unsafe_allow_html=True)
     else:
-        question = ""
-        submitted = False
+        st.warning("문서를 찾지 못했다.")
 
-    if doc_param:
-        doc = get_doc(str(doc_param))
-        if doc:
-            st.markdown("---")
-            st.header(f"{doc.get('title','')}")
-            st.caption(f"{doc.get('date','')}")
-            # 불릿 앞 줄바꿈 <br> 변환
-            content = doc.get("content", "").replace("• ", "<br>• ")
-            st.markdown(content, unsafe_allow_html=True)
-        else:
-            st.warning("문서를 찾지 못했다.")
+st.markdown("---")
 
-    st.markdown("---")
+# q=로 들어온 경우, 1회 자동 실행.
+# 문서(permalink) 뷰에서는 자동 실행하지 않는다.
+auto_key = f"auto_ran::{question}"
+should_auto_run = (
+    bool(q_param)
+    and bool(question)
+    and (not doc_param)
+    and (not st.session_state.get(auto_key))
+)
 
-    # q=로 들어온 경우, 1회 자동 실행.
-    # 문서(permalink) 뷰에서는 자동 실행하지 않는다.
-    auto_key = f"auto_ran::{question}"
-    should_auto_run = (
-        bool(q_param)
-        and bool(question)
-        and (not doc_param)
-        and (not st.session_state.get(auto_key))
-    )
+if (submitted and question) or should_auto_run:
+    st.session_state[auto_key] = True
+    render_answer_and_evidence(question, api_ok)
 
-    if (submitted and question) or should_auto_run:
-        st.session_state[auto_key] = True
-        render_answer_and_evidence(question, api_ok)
+# 대화 이력
+if "history" not in st.session_state:
+    st.session_state.history = []
 
-    # 대화 이력
-    if "history" not in st.session_state:
-        st.session_state.history = []
-
-    if question and st.session_state.get("last_q") != question:
-        st.session_state.last_q = question
+if question and st.session_state.get("last_q") != question:
+    st.session_state.last_q = question
