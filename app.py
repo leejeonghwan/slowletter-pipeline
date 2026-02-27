@@ -233,7 +233,7 @@ def _select_evidence(refs: list[dict], max_items: int = 10) -> list[dict]:
 
     # 최고 점수 대비 비율로 컷.
     # 너무 빡세면 근거가 0이 되니 최소 1개 보장.
-    cutoff_ratio = 0.35
+    cutoff_ratio = 0.4
     selected = [r for r in refs if _evidence_score(r) >= best * cutoff_ratio]
     if not selected:
         return refs[:1]
@@ -253,11 +253,11 @@ def render_answer_and_evidence(question: str, api_ok: bool):
     st.markdown(fix_answer_lines(result.get("answer", "")))
 
     st.markdown("---")
-    st.subheader("근거.")
+    st.subheader("텍스트.")
     try:
         s = requests.post(
             f"{API_URL}/search",
-            json={"query": question, "top_k": 10},
+            json={"query": question, "top_k": 30},
             timeout=30,
         )
         payload = s.json() if s.status_code == 200 else {"results": []}
@@ -265,7 +265,7 @@ def render_answer_and_evidence(question: str, api_ok: bool):
     except Exception:
         refs = []
 
-    refs = _select_evidence(refs, max_items=10)
+    refs = _select_evidence(refs, max_items=30)
 
     if not refs:
         st.caption("관련 문서를 찾지 못했다.")
@@ -274,17 +274,13 @@ def render_answer_and_evidence(question: str, api_ok: bool):
             doc_id = r.get("doc_id", "")
             title = r.get("title", "")
             date = r.get("date", "")
-            q_enc = quote(question)
-            permalink = f"{BASE_PUBLIC_URL}/?doc={doc_id}&q={q_enc}" if doc_id else ""
+            permalink = f"{BASE_PUBLIC_URL}/?doc={doc_id}" if doc_id else ""
 
-            st.markdown(f"{i}. ({date}) {ensure_period(title)}")
-            if doc_id:
-                st.caption(f"doc_id. {doc_id}.")
+            # 제목에 permalink 임베드, 새 탭에서 열기
             if permalink:
-                st.caption(f"permalink. {permalink}.")
-
-            st.markdown(ensure_period(r.get("content", "")))
-            st.markdown("---")
+                st.markdown(f'{i}. ({date}) <a href="{permalink}" target="_blank">{ensure_period(title)}</a>', unsafe_allow_html=True)
+            else:
+                st.markdown(f"{i}. ({date}) {ensure_period(title)}")
 
 
 from typing import List
@@ -380,29 +376,23 @@ if mode == "채팅.":
     # Streamlit은 입력 시마다 rerun하므로, 매번 값을 덮어쓰면 타이핑이 막힌다.
     if "q_input" not in st.session_state:
         st.session_state["q_input"] = default_q
-    question, _, submitted = render_query_bar(text_key="q_input", disabled=not api_ok)
+    
+    # 개별 기사 페이지에서는 검색바 숨김
+    if not doc_param:
+        question, _, submitted = render_query_bar(text_key="q_input", disabled=not api_ok)
+    else:
+        question = ""
+        submitted = False
 
     if doc_param:
         doc = get_doc(str(doc_param))
         if doc:
             st.markdown("---")
             st.header(f"{doc.get('title','')}")
-            st.caption(f"{doc.get('date','')} | {doc.get('doc_id','')}")
-            with st.expander("원문.", expanded=True):
-                st.markdown(doc.get("content", ""))
-            if st.button("목록으로."):
-                try:
-                    if q_param:
-                        st.query_params.clear()
-                        st.query_params["q"] = q_param
-                    else:
-                        st.query_params.clear()
-                except Exception:
-                    if q_param:
-                        st.experimental_set_query_params(q=q_param)
-                    else:
-                        st.experimental_set_query_params()
-                st.rerun()
+            st.caption(f"{doc.get('date','')}")
+            # 불릿 앞 줄바꿈 <br> 변환
+            content = doc.get("content", "").replace("• ", "<br>• ")
+            st.markdown(content, unsafe_allow_html=True)
         else:
             st.warning("문서를 찾지 못했다.")
 
