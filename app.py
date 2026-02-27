@@ -1,8 +1,10 @@
 """
 SlowLetter RAG - Streamlit 웹 UI
-Streamlit 기본 사이드바 + index.html 동일 디자인
+채팅 + 타임라인 + 트렌드 시각화
+(Streamlit 구버전 호환)
 """
-import os, re, sys, hashlib, html as html_mod, time
+import os
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
@@ -11,304 +13,524 @@ os.chdir(ROOT)
 
 import streamlit as st
 import requests
+import sqlite3
+from urllib.parse import quote
 
 API_URL = "http://localhost:8000"
+BASE_PUBLIC_URL = "https://slownews.net"
 
-# ===== 인증 설정 =====
-REQUIRE_LOGIN = False
-ACCESS_PASSWORDS = ["preview", "justice"]
+st.set_page_config(page_title="슬로우 컨텍스트", page_icon="📰", layout="wide")
 
-st.set_page_config(
-    page_title="Slow Context.",
-    page_icon="📰",
-    layout="wide",
-    initial_sidebar_state="expanded",
+# Sidebar 색상 등 간단한 스타일 오버라이드
+st.markdown(
+    """
+    <style>
+      /* === Layout alignment (sidebar vs main top) === */
+      section.main .block-container {
+        padding-top: 2.25rem;
+      }
+      section[data-testid="stSidebar"] > div {
+        padding-top: 2.25rem;
+      }
+
+      /* === Main theme === */
+      html, body, [data-testid="stAppViewContainer"] {
+        background-color: #000000;
+      }
+      [data-testid="stAppViewContainer"] * {
+        color: #ffffff;
+      }
+      /* main 영역 링크는 슬로우 컬러 */
+      [data-testid="stAppViewContainer"] a {
+        color: #fdad00 !important;
+        text-decoration: none !important;
+      }
+
+      /* 입력창 스타일 (검정 배경에서 가독성) */
+      [data-testid="stTextInput"] input {
+        background-color: #111111 !important;
+        color: #ffffff !important;
+        border: 1px solid #333333 !important;
+      }
+      [data-testid="stSelectbox"] div[data-baseweb="select"] > div {
+        background-color: #111111 !important;
+        color: #ffffff !important;
+        border: 1px solid #333333 !important;
+      }
+
+      /* 분석하기 버튼 색 */
+      button[kind="primary"],
+      div.stButton > button[kind="primary"] {
+        background-color: #fdad00 !important;
+        border: 1px solid #fdad00 !important;
+        color: #111111 !important;
+      }
+
+      /* === Sidebar theme (SlowNews company color) === */
+      section[data-testid="stSidebar"] {
+        background-color: #fdad00;
+      }
+      /* 사이드바 내 텍스트 가독성 */
+      section[data-testid="stSidebar"] * {
+        color: #111111;
+      }
+      /* 사이드바 링크도 검정으로(가독성/통일) */
+      section[data-testid="stSidebar"] a {
+        color: #111111 !important;
+      }
+      /* Streamlit status box(성공/에러) 글자 대비 */
+      section[data-testid="stSidebar"] [data-testid="stAlert"] * {
+        color: #111111 !important;
+      }
+
+      /* === Title style === */
+      h1 a, h1 a:visited {
+        color: #fdad00 !important;
+        text-decoration: none;
+      }
+      h1 a:hover {
+        text-decoration: none;
+      }
+    </style>
+    """,
+    unsafe_allow_html=True,
 )
 
-# ───────────────────────────────────────────────
-# CSS (index.html과 동일 디자인)
-# ───────────────────────────────────────────────
-st.markdown("""<style>
-.stApp { background-color: #fdad00; }
 
-/* 사이드바 — index.html .sidebar 동일 */
-[data-testid="stSidebar"] { background-color: #1c1917; }
-[data-testid="stSidebar"] * { color: #e7e5e4; }
-
-/* 메인 콘텐츠 — index.html .content 동일 폭 */
-.main .block-container {
-    max-width: 760px;
-    padding-top: 2rem;
-    padding-bottom: 2rem;
-}
-
-/* 메인 텍스트 색상 검정 */
-.main h1, .main h2, .main h3, .main p, .main span, .main label,
-.main .stMarkdown, .main [data-testid="stText"] {
-    color: #1c1917 !important;
-}
-
-/* 스피너 텍스트 검정 */
-.stSpinner > div { color: #1c1917 !important; }
-
-/* 검색 입력창 */
-.stTextInput > div > div > input {
-    background-color: white; color: #1c1917;
-    border: 1px solid rgba(0,0,0,0.18); border-radius: 6px;
-    padding: 0.6rem 0.85rem; font-size: 0.95rem;
-}
-.stTextInput > div > div > input:focus {
-    border-color: #0369a1; box-shadow: 0 0 0 2px #e0f2fe;
-}
-
-/* 분석 시작 버튼 */
-.stFormSubmitButton button {
-    background-color: #1c1917 !important; color: #fdad00 !important;
-    border: 1px solid rgba(0,0,0,0.18) !important; border-radius: 6px !important;
-    padding: 0.6rem 1rem !important; font-size: 0.85rem !important;
-    font-weight: 600 !important; white-space: nowrap !important;
-}
-.stFormSubmitButton button:hover {
-    background-color: #fdad00 !important; color: #1c1917 !important;
-}
-
-/* form 테두리 제거 */
-[data-testid="stForm"] { border: none !important; padding: 0 !important; }
-
-/* Streamlit 기본 요소 숨기기 */
-#MainMenu {visibility: hidden;}
-footer {visibility: hidden;}
-header {visibility: hidden;}
-</style>""", unsafe_allow_html=True)
-
-# ───────────────────────────────────────────────
-# 사이드바 (Streamlit 기본 st.sidebar 사용 — 어제 정상 작동한 방식)
-# ───────────────────────────────────────────────
-def render_sidebar():
-    with st.sidebar:
-        st.image(
-            "https://img.stibee.com/d846e0cc-c5fc-4bb4-b18f-e064a51c1cd2.png",
-            use_container_width=True,
-        )
-        st.markdown("""
-        <div style="margin-top:1rem;">
-            <div style="font-size:0.7rem;color:#a8a29e;margin-bottom:0.2rem;text-transform:uppercase;letter-spacing:0.05em;">아카이브.</div>
-            <div style="font-size:1.3rem;font-weight:700;color:#ffffff;margin-bottom:1rem;">
-                18,165<span style="font-size:0.75rem;font-weight:400;color:#a8a29e;"> 건.</span>
-            </div>
-            <div style="font-size:0.7rem;color:#a8a29e;margin-bottom:0.2rem;text-transform:uppercase;letter-spacing:0.05em;">기간.</div>
-            <div style="font-size:0.75rem;color:#a8a29e;margin-bottom:1rem;">2023-04 ~ 2026-02</div>
-        </div>
-        <hr style="border:none;border-top:1px solid #333;margin:1rem 0;">
-        <a href="/" style="display:block;padding:0.6rem 0.8rem;margin-bottom:0.4rem;border-radius:6px;font-size:0.85rem;color:#e7e5e4;text-decoration:none;">
-            Archives Search.
-        </a>
-        <a href="/context/" style="display:block;padding:0.6rem 0.8rem;margin-bottom:0.4rem;border-radius:6px;font-size:0.85rem;color:#1c1917;text-decoration:none;background:#fdad00;font-weight:600;">
-            Context Analytics(AI).
-        </a>
-        <a href="https://slownews.kr" target="_blank" rel="noopener" style="display:block;padding:0.6rem 0.8rem;margin-bottom:0.4rem;border-radius:6px;font-size:0.85rem;color:#e7e5e4;text-decoration:none;">
-            Slow News.
-        </a>
-        <div style="margin-top:auto;font-size:0.65rem;color:#57534e;">
-            <hr style="border:none;border-top:1px solid #333;margin:1rem 0;">
-            slownews.net
-        </div>
-        """, unsafe_allow_html=True)
-
-
-# ───────────────────────────────────────────────
-# 인증 헬퍼
-# ───────────────────────────────────────────────
-def make_token(pw):
-    secret = os.getenv("COOKIE_SECRET", "sl-secret-key-change-me")
-    return hashlib.sha256(f"{pw}:{secret}".encode()).hexdigest()[:32]
-
-def inject_cookie_js(token, days):
-    import streamlit.components.v1 as comp
-    comp.html(f'<script>document.cookie="sl_auth={token};path=/;max-age={days*86400};SameSite=Lax";</script>', height=0)
-
-def get_cookie_via_header():
-    try:
-        cookies = st.context.headers.get("Cookie", "")
-        for part in cookies.split(";"):
-            part = part.strip()
-            if part.startswith("sl_auth="):
-                return part.split("=", 1)[1]
-    except Exception:
-        pass
-    return None
-
-def is_authenticated():
-    if st.session_state.get("authenticated"):
-        return True
-    token = get_cookie_via_header()
-    if token:
-        for pw in ACCESS_PASSWORDS:
-            if token == make_token(pw):
-                st.session_state["authenticated"] = True
-                return True
-    return False
-
-def show_login():
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        st.markdown(""); st.markdown("")
-        st.markdown("### Context Analytics.")
-        st.markdown("유료 구독자 전용 서비스입니다."); st.markdown("")
-        password = st.text_input("접속 암호", type="password", key="login_pw",
-                                 label_visibility="collapsed", placeholder="접속 암호")
-        if st.button("입장", type="primary", use_container_width=True):
-            if password in ACCESS_PASSWORDS:
-                st.session_state["authenticated"] = True
-                inject_cookie_js(make_token(password), 3 if password == "preview" else 33)
-                time.sleep(0.5); st.rerun()
-            else:
-                st.error("암호가 올바르지 않습니다.")
-        st.caption("암호를 모르시면 슬로우레터 구독 페이지를 확인해 주세요.")
-
-
-# ───────────────────────────────────────────────
-# 메인 실행
-# ───────────────────────────────────────────────
-render_sidebar()
-
-if REQUIRE_LOGIN and not is_authenticated():
-    show_login(); st.stop()
-
-
-# ===== API 헬퍼 =====
 def check_api():
     try:
-        return requests.get(f"{API_URL}/health", timeout=3).status_code == 200
+        r = requests.get(f"{API_URL}/health", timeout=3)
+        return r.status_code == 200
     except Exception:
         return False
 
+
+from typing import Optional
+
+
+def get_archive_count() -> Optional[int]:
+    """로컬 SQLite 기준 문서 수를 반환합니다(가능하면 자동 표시)."""
+    try:
+        conn = sqlite3.connect("data/processed/entities.db")
+        cur = conn.execute("SELECT COUNT(*) FROM documents")
+        n = int(cur.fetchone()[0])
+        conn.close()
+        return n
+    except Exception:
+        return None
+
+
+def ensure_period(text: str) -> str:
+    """답변 끝에 마침표를 보정합니다."""
+    if text is None:
+        return "."
+    t = text.strip()
+    if not t:
+        return "."
+    if t.endswith((".", "!", "?", "…", "。", ":", ")", "\"", "%")):
+        return t
+    return t + "."
+
+
+def fix_answer_lines(answer: str) -> str:
+    """답변의 각 줄에 마침표 추가"""
+    if not answer:
+        return answer
+    
+    lines = answer.split("\n")
+    fixed_lines = []
+    
+    for line in lines:
+        # 빈 줄이나 제목(#), 구분선(---)은 그대로
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#") or stripped.startswith("---"):
+            fixed_lines.append(line)
+            continue
+        
+        # 나머지 줄은 마침표 보정
+        fixed_lines.append(ensure_period(line))
+    
+    return "\n".join(fixed_lines)
+
+
 def query_agent(question):
     try:
-        r = requests.post(f"{API_URL}/query", json={"question": question}, timeout=120)
-        return r.json()
+        r = requests.post(f"{API_URL}/query", json={"question": question}, timeout=180)
+        if r.status_code != 200:
+            # FastAPI가 500일 때 text/plain으로 내려주는 경우가 있어 json 파싱을 피한다.
+            return {
+                "answer": f"오류: API {r.status_code} - {r.text.strip()[:800]}",
+                "tool_calls": [],
+                "rounds": 0,
+            }
+        try:
+            return r.json()
+        except Exception:
+            return {
+                "answer": f"오류: Invalid JSON response - {r.text.strip()[:800]}",
+                "tool_calls": [],
+                "rounds": 0,
+            }
     except Exception as e:
-        return {"answer": f"오류: {str(e)}", "tool_calls": [], "rounds": 0, "sources": []}
+        return {"answer": f"오류: {str(e)}", "tool_calls": [], "rounds": 0}
 
 
-# ===== 답변 후처리 =====
-TOOL_DISPLAY = {
-    "semantic_search": ("의미 검색", "🔍"),
-    "entity_timeline": ("타임라인", "📊"),
-    "trend_analysis": ("트렌드", "📈"),
-    "source_search": ("언론사 검색", "📰"),
-}
-
-def postprocess_answer(text):
-    text = re.sub(r'\*\*([^*]+)\*\*', r'\1', text)
-    text = re.sub(r'\*([^*]+)\*', r'\1', text)
-    text = re.sub(r'^[\-\*]\s+', '', text, flags=re.MULTILINE)
-    text = re.sub(r'^\d+\.\s+', '', text, flags=re.MULTILINE)
-    lines = []
-    for line in text.split("\n"):
-        s = line.rstrip()
-        if s and not s.endswith(('.', '?', '!', '。')):
-            s += '.'
-        lines.append(s)
-    return "\n".join(lines)
+def get_doc(doc_id: str) -> dict:
+    try:
+        r = requests.get(f"{API_URL}/doc/{doc_id}", timeout=20)
+        if r.status_code != 200:
+            return {}
+        return r.json()
+    except Exception:
+        return {}
 
 
-def render_answer_card(result):
-    answer = postprocess_answer(result.get("answer", ""))
-    tool_calls = result.get("tool_calls", [])
-    sources = result.get("sources", [])
-    rounds = result.get("rounds", 0)
+def get_timeline(entity_name, granularity="month"):
+    try:
+        r = requests.post(f"{API_URL}/timeline", json={"entity_name": entity_name, "granularity": granularity}, timeout=30)
+        return r.json().get("timeline", [])
+    except Exception:
+        return []
 
-    # 도구 배지
-    badges = ""
-    for tc in tool_calls:
-        info = TOOL_DISPLAY.get(tc.get("tool", ""), ("도구", "🔧"))
-        badges += (
-            f'<span style="display:inline-flex;align-items:center;gap:0.3rem;'
-            f'padding:0.25rem 0.65rem;border-radius:16px;font-size:0.72rem;'
-            f'font-weight:500;background:#f5f5f4;color:#57534e;border:1px solid #e7e5e4;'
-            f'margin-right:0.35rem;margin-bottom:0.35rem">'
-            f'<span style="font-size:0.8rem">{info[1]}</span>{info[0]}</span>'
+
+def get_trend(keyword, granularity="month"):
+    try:
+        r = requests.post(f"{API_URL}/trend", json={"keyword": keyword, "granularity": granularity}, timeout=30)
+        return r.json()
+    except Exception:
+        return {}
+
+
+def _evidence_score(r: dict) -> float:
+    """검색 결과의 상대 점수를 계산한다.
+
+    - 하이브리드 점수(hybrid_score)가 있으면 우선.
+    - 없으면 BM25 점수(score)를 사용한다.
+    """
+    try:
+        hs = float(r.get("hybrid_score") or 0.0)
+    except Exception:
+        hs = 0.0
+    try:
+        bs = float(r.get("score") or 0.0)
+    except Exception:
+        bs = 0.0
+    return hs if hs > 0 else bs
+
+
+def _select_evidence(refs: list[dict], max_items: int = 10) -> list[dict]:
+    """최대 max_items에서, 관련도가 낮으면 자동으로 줄인다."""
+    if not refs:
+        return []
+
+    refs = list(refs)[:max_items]
+
+    scores = [_evidence_score(r) for r in refs]
+    best = max(scores) if scores else 0.0
+    if best <= 0:
+        # 점수 체계가 없거나 전부 0이면 상위 3개까지만.
+        return refs[: min(3, len(refs))]
+
+    # 최고 점수 대비 비율로 컷.
+    # 너무 빡세면 근거가 0이 되니 최소 1개 보장.
+    cutoff_ratio = 0.35
+    selected = [r for r in refs if _evidence_score(r) >= best * cutoff_ratio]
+    if not selected:
+        return refs[:1]
+    return selected
+
+
+def render_answer_and_evidence(question: str, api_ok: bool):
+    if not api_ok:
+        st.error("❌ API Server disconnected.")
+        return
+
+    with st.spinner("분석 중... (최대 1~2분 소요)"):
+        result = query_agent(question)
+
+    st.markdown("---")
+    st.markdown("### 📝 답변:")
+    st.markdown(fix_answer_lines(result.get("answer", "")))
+
+    st.markdown("---")
+    st.subheader("근거.")
+    try:
+        s = requests.post(
+            f"{API_URL}/search",
+            json={"query": question, "top_k": 10},
+            timeout=30,
         )
+        payload = s.json() if s.status_code == 200 else {"results": []}
+        refs = payload.get("results", []) or []
+    except Exception:
+        refs = []
 
-    # 헤더 (HTML)
-    st.markdown(
-        '<div style="background:#fff;border-radius:12px 12px 0 0;padding:2rem 2rem 0;margin-top:1.5rem;'
-        'box-shadow:0 2px 12px rgba(0,0,0,0.08);border-left:4px solid #fdad00">'
-        '<div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:1rem;'
-        'padding-bottom:0.75rem;border-bottom:1px solid #f0f0f0">'
-        '<span style="font-size:1.2rem">✦</span>'
-        '<span style="font-size:0.85rem;font-weight:600;color:#1c1917;'
-        'text-transform:uppercase;letter-spacing:0.03em">AI 분석 결과</span></div>'
-        '</div>',
-        unsafe_allow_html=True,
-    )
+    refs = _select_evidence(refs, max_items=10)
 
-    # 본문 (st.markdown으로 렌더링 — 마크다운 문법 지원)
-    st.markdown(
-        '<div style="background:#fff;padding:0 2rem;border-left:4px solid #fdad00;'
-        'box-shadow:0 2px 12px rgba(0,0,0,0.08)">',
-        unsafe_allow_html=True,
-    )
-    st.markdown(answer)
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    # 관련 기사 목록 + 메타 바 (HTML)
-    ref_html = ""
-    if sources:
-        items = []
-        for src in sources:
-            d = html_mod.escape(str(src.get("date", "")))
-            t = html_mod.escape(str(src.get("title", "")))
-            doc_id = html_mod.escape(str(src.get("id", "")))
-            link = f'<a href="/?doc={doc_id}" target="_blank" style="color:#1c1917;text-decoration:none">{t}</a>' if doc_id else t
-            items.append(
-                f'<div style="font-size:0.82rem;color:#57534e;line-height:1.6;padding:0.15rem 0">'
-                f'<span style="color:#a8a29e;font-size:0.75rem;margin-right:0.4rem">{d}</span>{link}</div>'
-            )
-        ref_html = (
-            '<div style="margin-top:1rem;padding-top:1rem;border-top:1px solid #f0f0f0">'
-            '<div style="font-size:0.78rem;font-weight:600;color:#a8a29e;text-transform:uppercase;'
-            'letter-spacing:0.04em;margin-bottom:0.5rem">관련 기사</div>'
-            + "".join(items) + '</div>'
-        )
-
-    st.markdown(
-        f'<div style="background:#fff;border-radius:0 0 12px 12px;padding:0 2rem 2rem;'
-        f'margin-bottom:1.5rem;box-shadow:0 2px 12px rgba(0,0,0,0.08);border-left:4px solid #fdad00">'
-        f'{ref_html}'
-        f'<div style="display:flex;align-items:center;flex-wrap:wrap;gap:0.5rem;'
-        f'padding:0.75rem 0;margin-top:0.5rem;border-top:1px solid #f0f0f0;'
-        f'font-size:0.72rem;color:#a8a29e">{badges}<span>추론 {rounds}단계</span></div>'
-        f'</div>',
-        unsafe_allow_html=True,
-    )
-
-
-# ───────────────────────────────────────────────
-# 헤더 + 검색 폼
-# ───────────────────────────────────────────────
-st.markdown("# Slow Context.")
-
-with st.form("search_form", clear_on_submit=False):
-    col_input, col_btn = st.columns([6, 1])
-    with col_input:
-        default_q = st.session_state.pop("question_input", "")
-        question = st.text_input(
-            "질문", value=default_q, key="q_input",
-            label_visibility="collapsed", placeholder="질문을 입력하세요",
-        )
-    with col_btn:
-        submitted = st.form_submit_button("분석 시작.")
-
-if submitted and question:
-    if not check_api():
-        st.error("API 서버에 연결할 수 없습니다.")
+    if not refs:
+        st.caption("관련 문서를 찾지 못했다.")
     else:
-        with st.spinner("분석 중... (최대 1~2분 소요)"):
-            result = query_agent(question)
-        st.session_state["last_result"] = result
-        render_answer_card(result)
-elif "last_result" in st.session_state:
-    render_answer_card(st.session_state["last_result"])
+        for i, r in enumerate(refs, 1):
+            doc_id = r.get("doc_id", "")
+            title = r.get("title", "")
+            date = r.get("date", "")
+            q_enc = quote(question)
+            permalink = f"{BASE_PUBLIC_URL}/?doc={doc_id}&q={q_enc}" if doc_id else ""
 
+            st.markdown(f"{i}. ({date}) {ensure_period(title)}")
+            if doc_id:
+                st.caption(f"doc_id. {doc_id}.")
+            if permalink:
+                st.caption(f"permalink. {permalink}.")
+
+            st.markdown(ensure_period(r.get("content", "")))
+            st.markdown("---")
+
+
+from typing import List
+
+
+def render_query_bar(
+    text_key: str,
+    select_key: Optional[str] = None,
+    select_options: Optional[List[str]] = None,
+    disabled: bool = False,
+):
+    """모든 화면에서 같은 위치/형태의 입력 바를 만든다."""
+
+    with st.form(f"form_{text_key}", clear_on_submit=False):
+        col1, col2 = st.columns([4, 1])
+        with col1:
+            text = st.text_input(
+                "query",
+                value=st.session_state.get(text_key, ""),
+                key=text_key,
+                label_visibility="collapsed",
+                disabled=disabled,
+            )
+        sel = None
+        if select_key and select_options:
+            with col2:
+                sel = st.selectbox(
+                    "granularity",
+                    select_options,
+                    index=0,
+                    key=select_key,
+                    label_visibility="collapsed",
+                    disabled=disabled,
+                )
+        else:
+            with col2:
+                st.markdown(" ")
+        submitted = st.form_submit_button("분석하기.", type="primary", disabled=disabled)
+
+    return text, sel, submitted
+
+
+# ===== 사이드바 =====
+HOME_URL = f"{BASE_PUBLIC_URL}/"
+
+with st.sidebar:
+    st.image("https://img.stibee.com/d846e0cc-c5fc-4bb4-b18f-e064a51c1cd2.png", use_container_width=True)
+
+    n_archives = get_archive_count()
+    if n_archives is not None:
+        st.markdown(f"<div style='font-size:1.3rem;font-weight:700;margin:0.5rem 0 1rem 0.4rem;'>{n_archives:,}<span style='font-size:0.75rem;font-weight:400;color:#666;'> 건.</span></div>", unsafe_allow_html=True)
+
+    api_ok = check_api()
+    if api_ok:
+        st.success("✅ API 연결됨.")
+    else:
+        st.error("❌ API 연결 안 됨.")
+
+    mode = st.radio("Mode", ["채팅.", "타임라인.", "트렌드."], index=0, label_visibility="collapsed")
+
+    st.markdown("---")
+    st.markdown(f"<a href='/' style='display:block;padding:0.4rem 0;font-size:0.85rem;'>Archives Search.</a>", unsafe_allow_html=True)
+    st.markdown(f"<a href='/context/' style='display:block;padding:0.4rem 0;font-size:0.85rem;font-weight:600;'>Context Analytics(후원회원 전용).</a>", unsafe_allow_html=True)
+
+
+# ===== 채팅 모드 =====
+if mode == "채팅.":
+    st.markdown(f"# [슬로우 컨텍스트.]({HOME_URL})")
+    st.markdown("Slow Context: 슬로우레터 기반의 맥락 분석 서비스.")
+
+    # permalink 진입 시 단건 문서 뷰
+    try:
+        qp = st.query_params  # streamlit 최신
+    except Exception:
+        qp = st.experimental_get_query_params()  # 구버전 호환
+
+    doc_param = None
+    q_param = None
+    try:
+        doc_param = qp.get("doc")
+        q_param = qp.get("q")
+        if isinstance(doc_param, list):
+            doc_param = doc_param[0] if doc_param else None
+        if isinstance(q_param, list):
+            q_param = q_param[0] if q_param else None
+    except Exception:
+        doc_param = None
+        q_param = None
+
+    # 채팅에서도 입력 바를 최상단(부제 아래) 고정.
+    default_q = st.session_state.pop("question_input", "")
+    if q_param and not default_q:
+        default_q = str(q_param)
+
+    # Streamlit은 입력 시마다 rerun하므로, 매번 값을 덮어쓰면 타이핑이 막힌다.
+    if "q_input" not in st.session_state:
+        st.session_state["q_input"] = default_q
+    question, _, submitted = render_query_bar(text_key="q_input", disabled=not api_ok)
+
+    if doc_param:
+        doc = get_doc(str(doc_param))
+        if doc:
+            st.markdown("---")
+            st.header(f"{doc.get('title','')}")
+            st.caption(f"{doc.get('date','')} | {doc.get('doc_id','')}")
+            with st.expander("원문.", expanded=True):
+                st.markdown(doc.get("content", ""))
+            if st.button("목록으로."):
+                try:
+                    if q_param:
+                        st.query_params.clear()
+                        st.query_params["q"] = q_param
+                    else:
+                        st.query_params.clear()
+                except Exception:
+                    if q_param:
+                        st.experimental_set_query_params(q=q_param)
+                    else:
+                        st.experimental_set_query_params()
+                st.rerun()
+        else:
+            st.warning("문서를 찾지 못했다.")
+
+    st.markdown("---")
+
+    # q=로 들어온 경우, 1회 자동 실행.
+    # 문서(permalink) 뷰에서는 자동 실행하지 않는다.
+    auto_key = f"auto_ran::{question}"
+    should_auto_run = (
+        bool(q_param)
+        and bool(question)
+        and (not doc_param)
+        and (not st.session_state.get(auto_key))
+    )
+
+    if (submitted and question) or should_auto_run:
+        st.session_state[auto_key] = True
+        render_answer_and_evidence(question, api_ok)
+
+    # 대화 이력
+    if "history" not in st.session_state:
+        st.session_state.history = []
+
+    if question and st.session_state.get("last_q") != question:
+        st.session_state.last_q = question
+
+
+# ===== 타임라인 모드 =====
+elif mode == "타임라인.":
+    st.markdown(f"# [슬로우 컨텍스트.]({HOME_URL})")
+    st.markdown("Slow Context: 이슈의 타임라인.")
+
+    entity_name, granularity, submitted = render_query_bar(
+        text_key="timeline_entity",
+        select_key="timeline_gran",
+        select_options=["month", "week", "day"],
+        disabled=not api_ok,
+    )
+
+    if submitted and entity_name:
+        with st.spinner("조회 중..."):
+            timeline = get_timeline(entity_name, granularity or "month")
+
+        if timeline:
+            st.markdown(f"**'{entity_name}' 보도 타임라인** ({len(timeline)}개 기간)")
+
+            # 차트
+            try:
+                import pandas as pd
+                df = pd.DataFrame(timeline)
+                df["period"] = df["period"].astype(str)
+                st.bar_chart(df.set_index("period")["doc_count"])
+            except ImportError:
+                for entry in timeline:
+                    bar = "█" * min(entry["doc_count"], 50)
+                    st.text(f"{entry['period']}: {entry['doc_count']:3d}건 {bar}")
+
+            # 상세
+            with st.expander("상세 보기"):
+                for entry in timeline:
+                    titles = " / ".join(entry["titles"][:3])
+                    st.markdown(f"**{entry['period']}** — {entry['doc_count']}건")
+                    st.caption(titles)
+        else:
+            st.warning(f"'{entity_name}'에 대한 데이터가 없습니다.")
+
+
+# ===== 트렌드 모드 =====
+elif mode == "트렌드.":
+    st.markdown(f"# [슬로우 컨텍스트.]({HOME_URL})")
+    st.markdown("Slow Context: 이슈의 구조와 맥락 읽기.")
+
+    keyword, t_granularity, submitted = render_query_bar(
+        text_key="trend_keyword",
+        select_key="trend_gran",
+        select_options=["month", "day"],
+        disabled=not api_ok,
+    )
+
+    if submitted and keyword:
+        with st.spinner("분석 중..."):
+            trend = get_trend(keyword, t_granularity or "month")
+
+        if trend and trend.get("timeline"):
+            # 요약
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("총 문서 수", f"{trend['total_count']}건")
+            with col2:
+                st.metric("분석 기간", f"{len(trend['timeline'])}개 구간")
+            with col3:
+                if trend.get("co_entities"):
+                    st.metric("관련 엔티티", f"{len(trend['co_entities'])}개")
+
+            # 빈도 차트
+            st.markdown("#### 기간별 빈도")
+            try:
+                import pandas as pd
+                df = pd.DataFrame(trend["timeline"])
+                df["period"] = df["period"].astype(str)
+                st.bar_chart(df.set_index("period")["count"])
+            except ImportError:
+                for entry in trend["timeline"]:
+                    bar = "█" * min(entry["count"], 50)
+                    st.text(f"{entry['period']}: {entry['count']:3d}건 {bar}")
+
+            # 공출현 엔티티
+            if trend.get("co_entities"):
+                st.markdown("#### 함께 언급된 엔티티")
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.markdown("**인물**")
+                    for ent in trend["co_entities"]:
+                        if ent["type"] == "person":
+                            st.markdown(f"- {ent['name']} ({ent['count']}회)")
+                with col2:
+                    st.markdown("**조직**")
+                    for ent in trend["co_entities"]:
+                        if ent["type"] == "organization":
+                            st.markdown(f"- {ent['name']} ({ent['count']}회)")
+
+            # 대표 문서
+            if trend.get("representative_docs"):
+                st.markdown("#### 대표 문서")
+                for doc in trend["representative_docs"][:5]:
+                    st.markdown(f"**({doc['date']}) {doc['title']}**")
+                    st.caption(f"{doc['snippet']}...")
+        else:
+            st.warning(f"'{keyword}'에 대한 트렌드 데이터가 없습니다.")
