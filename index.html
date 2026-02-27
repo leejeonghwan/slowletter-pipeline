@@ -17,7 +17,7 @@
 
   /* 사이드바 */
   .sidebar {
-    position: fixed; top: 0; left: 0;
+    position: fixed; top: 0; right: 0;
     width: var(--sidebar-width); height: 100vh;
     background: #1c1917; color: #e7e5e4;
     padding: 1.5rem 1.2rem;
@@ -43,14 +43,14 @@
   .sidebar-footer { margin-top: auto; font-size: 0.65rem; color: #57534e; }
 
   .sidebar-toggle {
-    display: none; position: fixed; top: 0.75rem; left: 0.75rem;
+    display: none; position: fixed; top: 0.75rem; right: 0.75rem;
     z-index: 200; background: #1c1917; color: #fdad00;
     border: none; border-radius: 6px; padding: 0.5rem 0.7rem;
     font-size: 1.1rem; cursor: pointer;
   }
 
   /* 메인 콘텐츠 */
-  .main { margin-left: var(--sidebar-width); }
+  .main { margin-right: var(--sidebar-width); }
 
   .header { background: var(--bg); border-bottom: 1px solid rgba(0,0,0,0.08); padding: 1.5rem 2rem; }
   .header-inner { max-width: 720px; margin: 0 auto; padding: 0 2rem; }
@@ -99,14 +99,14 @@
 
   /* 모바일 */
   @media (max-width: 768px) {
-    .sidebar { transform: translateX(-100%); transition: transform 0.25s; }
+    .sidebar { transform: translateX(100%); transition: transform 0.25s; }
     .sidebar.open { transform: translateX(0); }
     .sidebar-toggle { display: block; }
-    .main { margin-left: 0; }
+    .main { margin-right: 0; }
     .controls { padding: 0.75rem 1rem; }
     .content { padding: 0.75rem 1rem 3rem; }
     .stats { padding: 0.5rem 1rem; }
-    .header { padding: 1.2rem 1rem; padding-left: 3.5rem; }
+    .header { padding: 1.2rem 1rem; padding-right: 3.5rem; }
     .header h1 { font-size: 1.5rem; }
     .article-title { font-size: 1.2rem; }
     .header-inner, .controls-inner, .stats-inner { padding: 0 1rem; }
@@ -126,8 +126,8 @@
 
   <hr class="divider">
 
-  <a href="/" class="nav-link active">Archives Search.</a>
-  <a href="/context/" class="nav-link">Context Analytics(후원회원 전용).</a>
+  <span class="nav-link active">Archives Search.</span>
+  <span class="nav-link" style="cursor:default;">Context Analytics(후원회원 전용).</span>
 
   <div class="sidebar-footer">
     <hr class="divider">
@@ -201,16 +201,18 @@ function renderDocPage(docId) {
 
   const formatted = formatContent(doc.content);
   contentEl.innerHTML = `
-    <div style="padding:2rem 0;">
-      <div style="margin-bottom:1.5rem;">
+    <div style="padding:1.5rem 0;">
+      <div style="margin-bottom:1rem;">
         <a href="/" style="font-size:0.85rem;color:#fdad00;text-decoration:none;">&larr; 목록으로.</a>
       </div>
-      <div style="font-size:0.85rem;color:#a8a29e;margin-bottom:0.5rem;">${doc.date}.</div>
-      <h2 style="font-size:1.5rem;font-weight:700;color:#1c1917;margin-bottom:1.5rem;line-height:1.4;">${escapeHtml(doc.title)}</h2>
-      <div style="font-size:0.95rem;line-height:1.8;color:#1c1917;">${formatted}</div>
-      <div style="margin-top:2rem;padding-top:1rem;border-top:1px solid #e7e5e4;">
-        ${renderTags(doc.persons, 'person')}
-        ${renderTags(doc.orgs, 'org')}
+      <div class="article" style="padding:2rem;">
+        <div style="font-size:0.85rem;margin-bottom:0.5rem;"><button class="date-link" onclick="window.location.href='/?date=${doc.date}'" style="color:#a8a29e;cursor:pointer;background:transparent;border:none;padding:0;font:inherit;font-size:0.85rem;">${doc.date}.</button></div>
+        <h2 style="font-size:1.5rem;font-weight:700;color:#1c1917;margin-bottom:1.5rem;line-height:1.4;">${escapeHtml(doc.title)}</h2>
+        <div style="font-size:0.95rem;line-height:1.8;color:#1c1917;">${formatted}</div>
+        <div style="margin-top:2rem;padding-top:1rem;border-top:1px solid #e7e5e4;">
+          ${renderTags(doc.persons, 'person')}
+          ${renderTags(doc.orgs, 'org')}
+        </div>
       </div>
     </div>`;
 }
@@ -249,11 +251,16 @@ function loadData(retryCount) {
       allData.sort((a, b) => b.date.localeCompare(a.date));
       updateSidebarStats();
 
-      // ?doc= 파라미터가 있으면 독립 문서 페이지 표시
+      // URL 파라미터 처리
       const urlParams = new URLSearchParams(window.location.search);
       const docParam = urlParams.get('doc');
+      const dateParam = urlParams.get('date');
       if (docParam) {
         renderDocPage(docParam);
+      } else if (dateParam) {
+        selectedDate = dateParam;
+        document.getElementById('searchInput').placeholder = dateParam + ' 기사.';
+        applyFilters();
       } else {
         applyFilters();
       }
