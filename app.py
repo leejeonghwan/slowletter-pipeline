@@ -253,7 +253,7 @@ def render_answer_and_evidence(question: str, api_ok: bool):
     st.markdown(fix_answer_lines(result.get("answer", "")))
 
     st.markdown("---")
-    st.subheader("근거.")
+    st.subheader("텍스트.")
     try:
         s = requests.post(
             f"{API_URL}/search",
@@ -272,19 +272,14 @@ def render_answer_and_evidence(question: str, api_ok: bool):
     else:
         for i, r in enumerate(refs, 1):
             doc_id = r.get("doc_id", "")
-            title = r.get("title", "")
+            title = ensure_period(r.get("title", ""))
             date = r.get("date", "")
-            q_enc = quote(question)
-            permalink = f"{BASE_PUBLIC_URL}/?doc={doc_id}&q={q_enc}" if doc_id else ""
+            link = f"{BASE_PUBLIC_URL}/?doc={doc_id}" if doc_id else ""
 
-            st.markdown(f"{i}. ({date}) {ensure_period(title)}")
-            if doc_id:
-                st.caption(f"doc_id. {doc_id}.")
-            if permalink:
-                st.caption(f"permalink. {permalink}.")
-
-            st.markdown(ensure_period(r.get("content", "")))
-            st.markdown("---")
+            if link:
+                st.markdown(f"{i}. ({date}) [{title}]({link})")
+            else:
+                st.markdown(f"{i}. ({date}) {title}")
 
 
 from typing import List

@@ -188,6 +188,33 @@ function parseEntities(str) {
   return str.split(';').map(s => s.trim()).filter(s => s.length > 0);
 }
 
+function renderDocPage(docId) {
+  const doc = allData.find(d => d.id === docId);
+  const contentEl = document.getElementById('content');
+  const statsEl = document.getElementById('stats');
+  if (statsEl) statsEl.style.display = 'none';
+
+  if (!doc) {
+    contentEl.innerHTML = '<div style="padding:2rem 0;color:#a8a29e;">문서를 찾을 수 없습니다. <a href="/" style="color:#fdad00;">목록으로 돌아가기.</a></div>';
+    return;
+  }
+
+  const formatted = formatContent(doc.content);
+  contentEl.innerHTML = `
+    <div style="padding:2rem 0;">
+      <div style="margin-bottom:1.5rem;">
+        <a href="/" style="font-size:0.85rem;color:#fdad00;text-decoration:none;">&larr; 목록으로.</a>
+      </div>
+      <div style="font-size:0.85rem;color:#a8a29e;margin-bottom:0.5rem;">${doc.date}.</div>
+      <h2 style="font-size:1.5rem;font-weight:700;color:#1c1917;margin-bottom:1.5rem;line-height:1.4;">${escapeHtml(doc.title)}</h2>
+      <div style="font-size:0.95rem;line-height:1.8;color:#1c1917;">${formatted}</div>
+      <div style="margin-top:2rem;padding-top:1rem;border-top:1px solid #e7e5e4;">
+        ${renderTags(doc.persons, 'person')}
+        ${renderTags(doc.orgs, 'org')}
+      </div>
+    </div>`;
+}
+
 function loadData(retryCount) {
   retryCount = retryCount || 0;
   const csvPath = 'data/context/slowletter_web.csv';
@@ -221,7 +248,15 @@ function loadData(retryCount) {
       document.getElementById('progressFill').style.width = '100%';
       allData.sort((a, b) => b.date.localeCompare(a.date));
       updateSidebarStats();
-      applyFilters();
+
+      // ?doc= 파라미터가 있으면 독립 문서 페이지 표시
+      const urlParams = new URLSearchParams(window.location.search);
+      const docParam = urlParams.get('doc');
+      if (docParam) {
+        renderDocPage(docParam);
+      } else {
+        applyFilters();
+      }
       document.getElementById('loading').style.display = 'none';
     },
     error: function(err) {
@@ -309,7 +344,7 @@ function render() {
     const formattedContent = formatContent(item.content);
     html += `<div class="article">
       <div class="article-date"><button class="date-link" onclick="filterDate('${item.date}')">${item.date}.</button></div>
-      <div class="article-title">${escapeHtml(item.title)}</div>
+      <div class="article-title"><a href="/?doc=${encodeURIComponent(item.id)}" style="color:#1c1917;text-decoration:none;">${escapeHtml(item.title)}</a></div>
       <div class="article-snippet" id="snippet-${item.id}">${formattedContent}</div>
       <div class="tags">
         ${renderTags(item.persons, 'person')}
