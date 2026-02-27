@@ -21,11 +21,11 @@ BASE_PUBLIC_URL = "https://slownews.net"
 
 st.set_page_config(page_title="슬로우 컨텍스트", page_icon="📰", layout="wide")
 
-# Sidebar 색상 등 간단한 스타일 오버라이드
+# 스타일: index.html과 동일하게
 st.markdown(
     """
     <style>
-      /* === Layout alignment (sidebar vs main top) === */
+      /* === Layout alignment === */
       section.main .block-container {
         padding-top: 2.25rem;
       }
@@ -35,30 +35,41 @@ st.markdown(
 
       /* === Main theme === */
       html, body, [data-testid="stAppViewContainer"] {
-        background-color: #000000;
+        background-color: #fafaf9;
       }
       [data-testid="stAppViewContainer"] * {
-        color: #ffffff;
+        color: #111111;
       }
-      /* main 영역 링크는 슬로우 컬러 */
+      /* main 영역 링크 */
       [data-testid="stAppViewContainer"] a {
         color: #fdad00 !important;
         text-decoration: none !important;
       }
 
-      /* 입력창 스타일 (검정 배경에서 가독성) */
+      /* 입력창 스타일: 흰색 배경, 검정 글씨 (index.html과 동일) */
       [data-testid="stTextInput"] input {
-        background-color: #111111 !important;
-        color: #ffffff !important;
-        border: 1px solid #333333 !important;
+        background-color: #ffffff !important;
+        color: #111111 !important;
+        border: 1px solid rgba(0,0,0,0.18) !important;
+        border-radius: 6px !important;
+        padding: 0.6rem 0.85rem !important;
+        font-size: 0.95rem !important;
       }
+      [data-testid="stTextInput"] input::placeholder {
+        color: rgba(0,0,0,0.55) !important;
+      }
+      [data-testid="stTextInput"] input:focus {
+        border-color: #fdad00 !important;
+        box-shadow: 0 0 0 2px rgba(253,173,0,0.1) !important;
+      }
+      
       [data-testid="stSelectbox"] div[data-baseweb="select"] > div {
-        background-color: #111111 !important;
-        color: #ffffff !important;
-        border: 1px solid #333333 !important;
+        background-color: #ffffff !important;
+        color: #111111 !important;
+        border: 1px solid rgba(0,0,0,0.18) !important;
       }
 
-      /* 분석하기 버튼 색 */
+      /* 버튼 */
       button[kind="primary"],
       div.stButton > button[kind="primary"] {
         background-color: #fdad00 !important;
@@ -66,29 +77,32 @@ st.markdown(
         color: #111111 !important;
       }
 
-      /* === Sidebar theme (SlowNews company color) === */
+      /* === Sidebar (index.html과 동일) === */
       section[data-testid="stSidebar"] {
-        background-color: #fdad00;
+        background-color: #1c1917 !important;
       }
-      /* 사이드바 내 텍스트 가독성 */
       section[data-testid="stSidebar"] * {
-        color: #111111;
+        color: #e7e5e4 !important;
       }
-      /* 사이드바 링크도 검정으로(가독성/통일) */
+      section[data-testid="stSidebar"] h2,
+      section[data-testid="stSidebar"] h3 {
+        color: #fdad00 !important;
+        font-weight: 700 !important;
+      }
       section[data-testid="stSidebar"] a {
-        color: #111111 !important;
+        color: #e7e5e4 !important;
+        text-decoration: none !important;
       }
-      /* Streamlit status box(성공/에러) 글자 대비 */
+      section[data-testid="stSidebar"] a:hover {
+        background: #333 !important;
+      }
       section[data-testid="stSidebar"] [data-testid="stAlert"] * {
         color: #111111 !important;
       }
 
-      /* === Title style === */
+      /* Title */
       h1 a, h1 a:visited {
-        color: #fdad00 !important;
-        text-decoration: none;
-      }
-      h1 a:hover {
+        color: #111111 !important;
         text-decoration: none;
       }
     </style>
@@ -116,6 +130,20 @@ def get_archive_count() -> Optional[int]:
         n = int(cur.fetchone()[0])
         conn.close()
         return n
+    except Exception:
+        return None
+
+
+def get_date_range() -> Optional[str]:
+    """로컬 SQLite 기준 날짜 범위를 반환합니다."""
+    try:
+        conn = sqlite3.connect("data/processed/entities.db")
+        cur = conn.execute("SELECT MIN(date), MAX(date) FROM documents")
+        min_date, max_date = cur.fetchone()
+        conn.close()
+        if min_date and max_date:
+            return f"{min_date} ~ {max_date}"
+        return None
     except Exception:
         return None
 
@@ -323,31 +351,46 @@ def render_query_bar(
     return text, sel, submitted
 
 
-# ===== 사이드바 =====
+# ===== 사이드바 (index.html과 동일) =====
 HOME_URL = f"{BASE_PUBLIC_URL}/"
 
 with st.sidebar:
-    st.markdown(f"### [슬로우 컨텍스트.]({HOME_URL})")
-    st.markdown("Slow Context.")
+    st.markdown("## 슬로우 컨텍스트.")
+    st.markdown('<div style="font-size:0.75rem;color:#a8a29e;margin-bottom:1.5rem;">Slow Context.</div>', unsafe_allow_html=True)
 
-    api_ok = check_api()
-    if api_ok:
-        st.success("✅ API Server connected.")
-    else:
-        st.error("❌ API Server disconnected.")
-
-    mode = st.radio("Mode", ["채팅.", "타임라인.", "트렌드."], index=0, label_visibility="collapsed")
-
-    st.markdown("---")
+    # 아카이브 수
+    st.markdown('<div style="font-size:0.7rem;color:#a8a29e;margin-bottom:0.2rem;text-transform:uppercase;letter-spacing:0.05em;">아카이브.</div>', unsafe_allow_html=True)
     n_archives = get_archive_count()
     if n_archives is not None:
-        st.caption(f"{n_archives:,} news archives.")
+        st.markdown(f'<div style="font-size:1.3rem;font-weight:700;color:#ffffff;margin-bottom:1rem;">{n_archives:,}<span style="font-size:0.75rem;font-weight:400;color:#a8a29e;"> 건.</span></div>', unsafe_allow_html=True)
+    else:
+        st.markdown('<div style="font-size:1.3rem;font-weight:700;color:#ffffff;margin-bottom:1rem;">-<span style="font-size:0.75rem;font-weight:400;color:#a8a29e;"> 건.</span></div>', unsafe_allow_html=True)
+
+    # 기간
+    st.markdown('<div style="font-size:0.7rem;color:#a8a29e;margin-bottom:0.2rem;text-transform:uppercase;letter-spacing:0.05em;">기간.</div>', unsafe_allow_html=True)
+    date_range = get_date_range()
+    if date_range:
+        st.markdown(f'<div style="font-size:0.75rem;color:#a8a29e;margin-bottom:1rem;">{date_range}</div>', unsafe_allow_html=True)
+    else:
+        st.markdown('<div style="font-size:0.75rem;color:#a8a29e;margin-bottom:1rem;">로딩 중...</div>', unsafe_allow_html=True)
+
+    st.markdown("---")
+
+    # 네비게이션
+    st.markdown(f'<a href="/" style="display:block;padding:0.6rem 0.8rem;margin-bottom:0.4rem;border-radius:6px;font-size:0.85rem;color:#e7e5e4;text-decoration:none;">Archives Search.</a>', unsafe_allow_html=True)
+    st.markdown(f'<a href="/context/" style="display:block;padding:0.6rem 0.8rem;margin-bottom:0.4rem;border-radius:6px;font-size:0.85rem;color:#1c1917;background:#fdad00;font-weight:600;text-decoration:none;">Context Analytics(AI).</a>', unsafe_allow_html=True)
+    st.markdown(f'<a href="https://slownews.kr" target="_blank" rel="noopener" style="display:block;padding:0.6rem 0.8rem;margin-bottom:0.4rem;border-radius:6px;font-size:0.85rem;color:#e7e5e4;text-decoration:none;">Slow News.</a>', unsafe_allow_html=True)
+
+    st.markdown("---")
+    st.markdown('<div style="font-size:0.65rem;color:#57534e;">slownews.net</div>', unsafe_allow_html=True)
+
+    # API 상태는 숨김 (필요시 로그로만 확인)
+    api_ok = check_api()
 
 
-# ===== 채팅 모드 =====
-if mode == "채팅.":
-    st.markdown(f"# [슬로우 컨텍스트.]({HOME_URL})")
-    st.markdown("Slow Context: 슬로우레터 기반의 맥락 분석 서비스.")
+# ===== 메인 (채팅 모드 전용) =====
+st.markdown(f"# [SlowLetter Context Analytics(AI).]({HOME_URL})")
+st.markdown("Slow Context: 슬로우레터 기반의 맥락 분석 서비스.")
 
     # permalink 진입 시 단건 문서 뷰
     try:
@@ -418,107 +461,3 @@ if mode == "채팅.":
 
     if question and st.session_state.get("last_q") != question:
         st.session_state.last_q = question
-
-
-# ===== 타임라인 모드 =====
-elif mode == "타임라인.":
-    st.markdown(f"# [슬로우 컨텍스트.]({HOME_URL})")
-    st.markdown("Slow Context: 이슈의 타임라인.")
-
-    entity_name, granularity, submitted = render_query_bar(
-        text_key="timeline_entity",
-        select_key="timeline_gran",
-        select_options=["month", "week", "day"],
-        disabled=not api_ok,
-    )
-
-    if submitted and entity_name:
-        with st.spinner("조회 중..."):
-            timeline = get_timeline(entity_name, granularity or "month")
-
-        if timeline:
-            st.markdown(f"**'{entity_name}' 보도 타임라인** ({len(timeline)}개 기간)")
-
-            # 차트
-            try:
-                import pandas as pd
-                df = pd.DataFrame(timeline)
-                df["period"] = df["period"].astype(str)
-                st.bar_chart(df.set_index("period")["doc_count"])
-            except ImportError:
-                for entry in timeline:
-                    bar = "█" * min(entry["doc_count"], 50)
-                    st.text(f"{entry['period']}: {entry['doc_count']:3d}건 {bar}")
-
-            # 상세
-            with st.expander("상세 보기"):
-                for entry in timeline:
-                    titles = " / ".join(entry["titles"][:3])
-                    st.markdown(f"**{entry['period']}** — {entry['doc_count']}건")
-                    st.caption(titles)
-        else:
-            st.warning(f"'{entity_name}'에 대한 데이터가 없습니다.")
-
-
-# ===== 트렌드 모드 =====
-elif mode == "트렌드.":
-    st.markdown(f"# [슬로우 컨텍스트.]({HOME_URL})")
-    st.markdown("Slow Context: 이슈의 구조와 맥락 읽기.")
-
-    keyword, t_granularity, submitted = render_query_bar(
-        text_key="trend_keyword",
-        select_key="trend_gran",
-        select_options=["month", "day"],
-        disabled=not api_ok,
-    )
-
-    if submitted and keyword:
-        with st.spinner("분석 중..."):
-            trend = get_trend(keyword, t_granularity or "month")
-
-        if trend and trend.get("timeline"):
-            # 요약
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                st.metric("총 문서 수", f"{trend['total_count']}건")
-            with col2:
-                st.metric("분석 기간", f"{len(trend['timeline'])}개 구간")
-            with col3:
-                if trend.get("co_entities"):
-                    st.metric("관련 엔티티", f"{len(trend['co_entities'])}개")
-
-            # 빈도 차트
-            st.markdown("#### 기간별 빈도")
-            try:
-                import pandas as pd
-                df = pd.DataFrame(trend["timeline"])
-                df["period"] = df["period"].astype(str)
-                st.bar_chart(df.set_index("period")["count"])
-            except ImportError:
-                for entry in trend["timeline"]:
-                    bar = "█" * min(entry["count"], 50)
-                    st.text(f"{entry['period']}: {entry['count']:3d}건 {bar}")
-
-            # 공출현 엔티티
-            if trend.get("co_entities"):
-                st.markdown("#### 함께 언급된 엔티티")
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.markdown("**인물**")
-                    for ent in trend["co_entities"]:
-                        if ent["type"] == "person":
-                            st.markdown(f"- {ent['name']} ({ent['count']}회)")
-                with col2:
-                    st.markdown("**조직**")
-                    for ent in trend["co_entities"]:
-                        if ent["type"] == "organization":
-                            st.markdown(f"- {ent['name']} ({ent['count']}회)")
-
-            # 대표 문서
-            if trend.get("representative_docs"):
-                st.markdown("#### 대표 문서")
-                for doc in trend["representative_docs"][:5]:
-                    st.markdown(f"**({doc['date']}) {doc['title']}**")
-                    st.caption(f"{doc['snippet']}...")
-        else:
-            st.warning(f"'{keyword}'에 대한 트렌드 데이터가 없습니다.")
