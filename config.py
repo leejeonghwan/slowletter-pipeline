@@ -26,6 +26,11 @@ SQLITE_DB = PROCESSED_DIR / "entities.db"
 BM25_INDEX = PROCESSED_DIR / "bm25_index.pkl"
 VECTOR_INDEX_DIR = PROCESSED_DIR / "qdrant"
 
+# Qdrant 설정
+# - 환경변수 QDRANT_URL이 있으면 서버 모드 (예: localhost:6333)
+# - 없으면 path 모드 (VECTOR_INDEX_DIR)
+QDRANT_URL = os.getenv("QDRANT_URL", str(VECTOR_INDEX_DIR))
+
 # API 키
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")

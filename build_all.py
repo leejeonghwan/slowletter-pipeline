@@ -16,7 +16,7 @@ ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 os.chdir(ROOT)  # 작업 디렉토리도 프로젝트 루트로 고정
 
-from config import PROCESSED_DIR, SQLITE_DB, BM25_INDEX, VECTOR_INDEX_DIR
+from config import PROCESSED_DIR, SQLITE_DB, BM25_INDEX, VECTOR_INDEX_DIR, QDRANT_URL
 
 
 def main():
@@ -63,7 +63,7 @@ def main():
         from indexing.embedder import build_index
         # 기본은 증분 임베딩. 전체 재빌드가 필요하면 FULL_REBUILD_VECTOR=1로 실행.
         recreate = os.getenv("FULL_REBUILD_VECTOR", "0") == "1"
-        build_index(csv_path, str(VECTOR_INDEX_DIR), openai_key, incremental=True, recreate=recreate)
+        build_index(csv_path, QDRANT_URL, openai_key, incremental=True, recreate=recreate)
 
         print(f"완료: {time.time() - start:.1f}초")
     else:

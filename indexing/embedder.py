@@ -85,13 +85,31 @@ class SlowLetterEmbedder:
 
 
 class VectorStore:
-    """Qdrant 기반 벡터 저장소"""
+    """Qdrant 기반 벡터 저장소 (서버 모드 우선, path 모드 폴백)"""
 
     COLLECTION_NAME = "slowletter"
 
-    def __init__(self, path: str):
-        """로컬 파일 기반 Qdrant 클라이언트를 초기화합니다."""
-        self.client = QdrantClient(path=path)
+    def __init__(self, path_or_url: str):
+        """
+        Qdrant 클라이언트 초기화
+        - localhost:6333 등 URL 형태면 서버 모드
+        - 그 외는 로컬 path 모드
+        """
+        import os
+        # 환경변수 QDRANT_URL 우선
+        url = os.getenv("QDRANT_URL", path_or_url)
+        
+        if "localhost" in url or ":" in url:
+            # 서버 모드
+            if "://" in url:
+                url = url.replace("http://", "").replace("https://", "")
+            host, port = url.split(":")
+            self.client = QdrantClient(host=host, port=int(port))
+            print(f"Qdrant 서버 모드: {url}")
+        else:
+            # path 모드
+            self.client = QdrantClient(path=url)
+            print(f"Qdrant path 모드: {url}")
 
     def collection_exists(self) -> bool:
         collections = [c.name for c in self.client.get_collections().collections]
@@ -134,21 +152,27 @@ class VectorStore:
     ):
         """문서를 벡터 저장소에 삽입합니다.
 
-        Point id는 doc_id(문서 고유키)를 그대로 사용합니다.
+        Point id는 doc_id를 hash로 변환해서 사용합니다 (서버 모드 호환).
         """
+        import hashlib
+        
         for i in range(0, len(doc_ids), batch_size):
             batch_ids = doc_ids[i:i + batch_size]
             batch_embeddings = embeddings[i:i + batch_size]
             batch_payloads = payloads[i:i + batch_size]
 
-            points = [
-                PointStruct(
-                    id=did,
-                    vector=emb,
-                    payload={**payload, "doc_id": did},
+            points = []
+            for (did, emb, payload) in zip(batch_ids, batch_embeddings, batch_payloads):
+                # Point ID는 hash로 변환 (서버 모드 호환)
+                point_id = int(hashlib.sha256(did.encode()).hexdigest()[:16], 16)
+                points.append(
+                    PointStruct(
+                        id=point_id,
+                        vector=emb,
+                        payload={**payload, "doc_id": did},
+                    )
                 )
-                for (did, emb, payload) in zip(batch_ids, batch_embeddings, batch_payloads)
-            ]
+            
             self.client.upsert(
                 collection_name=self.COLLECTION_NAME,
                 points=points,
@@ -172,11 +196,12 @@ class VectorStore:
                 with_vectors=False,
             )
             for p in points:
-                pid = str(p.id)
                 payload = p.payload or {}
+                # 서버 모드 호환: payload에서 doc_id 가져오기
+                doc_id = str(payload.get("doc_id", ""))
                 h = str(payload.get("content_hash", ""))
-                if pid:
-                    existing[pid] = h
+                if doc_id:
+                    existing[doc_id] = h
             if next_offset is None:
                 break
         return existing

@@ -52,8 +52,8 @@ async def lifespan(app: FastAPI):
     print(f"  BM25 loaded: {BM25_INDEX}")
 
     # 3. Vector Store / Embedder
-    vector_store = VectorStore(str(VECTOR_INDEX_DIR))
-    print(f"  VectorStore loaded: {VECTOR_INDEX_DIR}")
+    vector_store = VectorStore(QDRANT_URL)
+    print(f"  VectorStore loaded: {QDRANT_URL}")
 
     embedder = None
     try:

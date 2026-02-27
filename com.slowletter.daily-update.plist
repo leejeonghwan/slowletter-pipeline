@@ -8,7 +8,7 @@
   <key>ProgramArguments</key>
   <array>
     <string>/bin/bash</string>
-    <string>/Users/slowclaw/slowletter-pipeline/daily_update_rag.sh</string>
+    <string>/Users/slowclaw/slowletter-pipeline/daily_update.sh</string>
   </array>
 
   <key>WorkingDirectory</key>
