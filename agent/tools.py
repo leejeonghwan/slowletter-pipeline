@@ -145,6 +145,16 @@ class ToolExecutor:
     def __init__(self, hybrid_search, entity_db):
         self.hybrid_search = hybrid_search
         self.entity_db = entity_db
+        self._last_sources = []  # 최근 검색에서 찾은 소스 문서
+
+    @property
+    def last_sources(self) -> list:
+        """최근 도구 실행에서 수집된 소스 문서 반환"""
+        return self._last_sources
+
+    def clear_sources(self):
+        """소스 문서 초기화 (새 질문 시작 시 호출)"""
+        self._last_sources = []
 
     def execute(self, tool_name: str, tool_input: dict) -> str:
         """도구를 실행하고 결과를 문자열로 반환합니다."""
@@ -162,6 +172,16 @@ class ToolExecutor:
         except Exception as e:
             return f"도구 실행 오류: {str(e)}"
 
+    def _collect_source(self, doc: dict):
+        """소스 문서를 중복 없이 수집 (id 또는 date+title 기준)"""
+        doc_key = doc.get("id") or f"{doc.get('date', '')}_{doc.get('title', '')}"
+        existing_keys = {
+            s.get("id") or f"{s.get('date', '')}_{s.get('title', '')}"
+            for s in self._last_sources
+        }
+        if doc_key not in existing_keys:
+            self._last_sources.append(doc)
+
     def _semantic_search(self, params: dict) -> str:
         """시맨틱 검색 실행"""
         results = self.hybrid_search.search(
@@ -176,6 +196,17 @@ class ToolExecutor:
 
         output_parts = [f"검색 결과 ({len(results)}건):"]
         for i, r in enumerate(results, 1):
+            # 소스 수집
+            self._collect_source({
+                "id": r.get("id", ""),
+                "date": r.get("date", ""),
+                "title": r.get("title", ""),
+                "snippet": (r.get("content", "") or "")[:200],
+                "persons": r.get("persons", ""),
+                "organizations": r.get("organizations", ""),
+                "score": r.get("score", 0),
+            })
+
             output_parts.append(
                 f"\n[{i}] ({r['date']}) {r['title']}\n"
                 f"내용: {r['content']}\n"
@@ -256,6 +287,15 @@ class ToolExecutor:
 
         output_parts = [f"'{params['media_name']}' 관련 문서 ({len(results)}건):"]
         for i, r in enumerate(results, 1):
+            self._collect_source({
+                "id": r.get("id", ""),
+                "date": r.get("date", ""),
+                "title": r.get("title", ""),
+                "snippet": (r.get("content", "") or "")[:200],
+                "persons": r.get("persons", ""),
+                "organizations": r.get("organizations", ""),
+            })
+
             output_parts.append(
                 f"\n[{i}] ({r['date']}) {r['title']}\n"
                 f"내용: {r['content']}"

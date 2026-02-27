@@ -14,7 +14,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Optional, List
 
 # 프로젝트 루트를 path에 추가 (절대경로)
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -105,10 +105,21 @@ class QueryRequest(BaseModel):
     conversation_history: Optional[list] = Field(None, description="이전 대화 이력")
 
 
+class SourceDoc(BaseModel):
+    id: str = ""
+    date: str = ""
+    title: str = ""
+    snippet: str = ""
+    persons: str = ""
+    organizations: str = ""
+    score: float = 0.0
+
+
 class QueryResponse(BaseModel):
     answer: str
     tool_calls: list
     rounds: int
+    sources: List[SourceDoc] = []
 
 
 class SearchRequest(BaseModel):
@@ -161,13 +172,20 @@ def query_endpoint(req: QueryRequest):
 
     try:
         result = agent.query(req.question, req.conversation_history)
-        return QueryResponse(**result)
+        # sources를 SourceDoc 모델로 안전하게 변환
+        raw_sources = result.get("sources", [])
+        sources = [SourceDoc(**s) if isinstance(s, dict) else s for s in raw_sources]
+        return QueryResponse(
+            answer=result.get("answer", ""),
+            tool_calls=result.get("tool_calls", []),
+            rounds=result.get("rounds", 0),
+            sources=sources,
+        )
     except Exception as e:
         # Agent 실패 시: 검색 컨텍스트 기반으로 최소한의 답변 제공
         fallback_answer = None
         try:
             if hybrid_search is not None:
-                # search_with_context는 내부적으로 하이브리드 검색을 호출
                 ctx = hybrid_search.search_with_context(req.question, top_k=8)
                 fallback_answer = (
                     "(에이전트 호출이 실패하여, 검색 결과 기반으로만 답변합니다.)\n\n"
@@ -183,7 +201,7 @@ def query_endpoint(req: QueryRequest):
                 f"오류: {msg}"
             )
 
-        return QueryResponse(answer=fallback_answer, tool_calls=[], rounds=0)
+        return QueryResponse(answer=fallback_answer, tool_calls=[], rounds=0, sources=[])
 
 
 @app.post("/search")

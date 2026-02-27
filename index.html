@@ -3,334 +3,125 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SlowLetter Archives</title>
+<title>SlowLetter Finder.</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <style>
-:root {
-  --sidebar-width: 240px;
-  --bg-yellow: #fdad00;
-  --bg-dark: #1c1917;
-  --text-light: #e7e5e4;
-  --text-gray: #a8a29e;
-  --text-dark: #111111;
-  --white: #ffffff;
-}
-
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
-body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  background: var(--bg-yellow);
-  color: var(--text-dark);
-  line-height: 1.6;
-}
-
-/* 사이드바 */
-.sidebar {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: var(--sidebar-width);
-  height: 100vh;
-  background: var(--bg-dark);
-  color: var(--text-light);
-  padding: 1.5rem 1.2rem;
-  display: flex;
-  flex-direction: column;
-  z-index: 100;
-  overflow-y: auto;
-}
-
-.sidebar-logo {
-  max-width: 180px;
-  margin-bottom: 1.5rem;
-  cursor: pointer;
-}
-
-.sidebar .stat-label {
-  font-size: 0.7rem;
-  color: var(--text-gray);
-  margin-bottom: 0.2rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.sidebar .stat-value {
-  font-size: 1.3rem;
-  font-weight: 700;
-  color: var(--white);
-  margin-bottom: 1rem;
-}
-
-.sidebar .stat-value .unit {
-  font-size: 0.75rem;
-  font-weight: 400;
-  color: var(--text-gray);
-}
-
-.sidebar .date-range {
-  font-size: 0.75rem;
-  color: var(--text-gray);
-  margin-bottom: 1rem;
-}
-
-.sidebar hr {
-  border: none;
-  border-top: 1px solid #333;
-  margin: 1rem 0;
-}
-
-.sidebar .nav-link {
-  display: block;
-  padding: 0.6rem 0.8rem;
-  margin-bottom: 0.4rem;
-  border-radius: 6px;
-  font-size: 0.85rem;
-  color: var(--text-light);
-  text-decoration: none;
-  transition: background 0.15s;
-}
-
-.sidebar .nav-link:hover {
-  background: #333;
-}
-
-.sidebar .nav-link.active {
-  background: var(--bg-yellow);
-  color: var(--bg-dark);
-  font-weight: 600;
-}
-
-.sidebar-footer {
-  margin-top: auto;
-  font-size: 0.65rem;
-  color: #57534e;
-}
-
-/* 메인 콘텐츠 */
-.main {
-  margin-left: var(--sidebar-width);
-  min-height: 100vh;
-  padding: 2rem;
-}
-
-.container {
-  max-width: 800px;
-  margin: 0 auto;
-}
-
-/* 흰색 박스 */
-.box {
-  background: var(--white);
-  border-radius: 8px;
-  padding: 1.5rem;
-  margin-bottom: 1rem;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-}
-
-/* 검색 영역 */
-.search-box {
-  display: flex;
-  gap: 0.75rem;
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-.search-box input {
-  flex: 1;
-  min-width: 200px;
-  padding: 0.6rem 0.85rem;
-  border: 1px solid rgba(0,0,0,0.18);
-  border-radius: 6px;
-  font-size: 0.95rem;
-  outline: none;
-}
-
-.search-box input:focus {
-  border-color: var(--bg-yellow);
-  box-shadow: 0 0 0 2px rgba(253,173,0,0.1);
-}
-
-.search-box select {
-  padding: 0.6rem;
-  border: 1px solid rgba(0,0,0,0.18);
-  border-radius: 6px;
-  font-size: 0.85rem;
-  background: var(--white);
-  cursor: pointer;
-}
-
-/* 통계 */
-.stats {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 0.85rem;
-  color: #666;
-  margin-bottom: 1rem;
-}
-
-/* 기사 카드 */
-.article {
-  margin-bottom: 1rem;
-}
-
-.article-date {
-  font-size: 0.75rem;
-  color: #666;
-  margin-bottom: 0.25rem;
-}
-
-.article-date a {
-  color: inherit;
-  text-decoration: none;
-}
-
-.article-date a:hover {
-  text-decoration: underline;
-}
-
-.article-title {
-  font-size: 1.4rem;
-  font-weight: 600;
-  margin-bottom: 0.5rem;
-  color: var(--text-dark);
-}
-
-.article-content {
-  font-size: 0.9rem;
-  color: #444;
-  margin-bottom: 0.75rem;
-  line-height: 1.8;
-}
-
-.article-content a {
-  color: #0369a1;
-  text-decoration: none;
-}
-
-.article-content a:hover {
-  text-decoration: underline;
-}
-
-/* 태그 */
-.tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-}
-
-.tag {
-  padding: 0.2rem 0.6rem;
-  border-radius: 12px;
-  font-size: 0.7rem;
-  cursor: pointer;
-  transition: opacity 0.15s;
-}
-
-.tag:hover {
-  opacity: 0.8;
-}
-
-.tag-person {
-  background: #fef3c7;
-}
-
-.tag-org {
-  background: #d1fae5;
-}
-
-/* 페이지네이션 */
-.pagination {
-  display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-  margin-top: 1.5rem;
-}
-
-.page-btn {
-  padding: 0.4rem 0.8rem;
-  border: 1px solid #e7e5e4;
-  border-radius: 6px;
-  background: var(--white);
-  cursor: pointer;
-  font-size: 0.85rem;
-}
-
-.page-btn:hover:not(:disabled) {
-  background: #f5f5f4;
-}
-
-.page-btn.active {
-  background: #0369a1;
-  color: white;
-  border-color: #0369a1;
-}
-
-.page-btn:disabled {
-  opacity: 0.4;
-  cursor: default;
-}
-
-/* 로딩 */
-.loading {
-  text-align: center;
-  padding: 4rem 2rem;
-  color: #666;
-}
-
-.loading-spinner {
-  display: inline-block;
-  width: 32px;
-  height: 32px;
-  border: 3px solid #e7e5e4;
-  border-top-color: #0369a1;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-/* 개별 기사 페이지 */
-.single-article .article-title {
-  font-size: 1.8rem;
-  margin-bottom: 1rem;
-}
-
-.single-article .article-content {
-  font-size: 1rem;
-  line-height: 1.9;
-}
-
-/* 모바일 */
-@media (max-width: 768px) {
-  .main {
-    margin-left: 0;
-    padding: 1rem;
+  :root {
+    --bg: #fdad00; --surface: #ffffff; --border: #e7e5e4;
+    --text: #1c1917; --text2: #57534e; --accent: #0369a1;
+    --accent-bg: #e0f2fe; --tag-person: #fdad00; --tag-org: #bbf7d0;
+    --sidebar-width: 240px;
   }
-  
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+
+  /* 사이드바 */
   .sidebar {
-    transform: translateX(-100%);
-    transition: transform 0.25s;
+    position: fixed; top: 0; left: 0;
+    width: var(--sidebar-width); height: 100vh;
+    background: #1c1917; color: #e7e5e4;
+    padding: 1.5rem 1.2rem;
+    display: flex; flex-direction: column;
+    z-index: 100;
+    overflow-y: auto;
   }
-  
-  .sidebar.open {
-    transform: translateX(0);
+  .sidebar h2 { font-size: 1.1rem; font-weight: 700; color: #fdad00; margin-bottom: 0.25rem; }
+  .sidebar .sub { font-size: 0.75rem; color: #a8a29e; margin-bottom: 1.5rem; }
+  .sidebar .divider { border: none; border-top: 1px solid #333; margin: 1rem 0; }
+  .sidebar .stat-label { font-size: 0.7rem; color: #a8a29e; margin-bottom: 0.2rem; text-transform: uppercase; letter-spacing: 0.05em; }
+  .sidebar .stat-value { font-size: 1.3rem; font-weight: 700; color: #ffffff; margin-bottom: 1rem; }
+  .sidebar .stat-value .unit { font-size: 0.75rem; font-weight: 400; color: #a8a29e; }
+  .sidebar .date-range { font-size: 0.75rem; color: #a8a29e; margin-bottom: 1rem; }
+  .sidebar .nav-link {
+    display: block; padding: 0.6rem 0.8rem; margin-bottom: 0.4rem;
+    border-radius: 6px; font-size: 0.85rem; color: #e7e5e4;
+    text-decoration: none; transition: background 0.15s;
   }
-}
+  .sidebar .nav-link:hover { background: #333; }
+  .sidebar .nav-link.active { background: #fdad00; color: #1c1917; font-weight: 600; }
+  .sidebar .nav-link .icon { margin-right: 0.5rem; }
+  .sidebar-footer { margin-top: auto; font-size: 0.65rem; color: #57534e; }
+
+  .sidebar-toggle {
+    display: none; position: fixed; top: 0.75rem; left: 0.75rem;
+    z-index: 200; background: #1c1917; color: #fdad00;
+    border: none; border-radius: 6px; padding: 0.5rem 0.7rem;
+    font-size: 1.1rem; cursor: pointer;
+  }
+
+  /* 메인 콘텐츠 */
+  .main { margin-left: var(--sidebar-width); }
+
+  .header { background: var(--bg); border-bottom: 1px solid rgba(0,0,0,0.08); padding: 1.5rem 2rem; }
+  .header-inner { max-width: 720px; margin: 0 auto; padding: 0 2rem; }
+  .header h1 { font-size: 1.8rem; font-weight: 800; cursor: pointer; }
+  .header h1:hover { text-decoration: underline; text-decoration-thickness: 2px; }
+
+  .controls { background: var(--bg); border-bottom: 1px solid rgba(0,0,0,0.08); padding: 1rem 2rem; }
+  .controls-inner { max-width: 720px; margin: 0 auto; padding: 0 2rem; display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; }
+  .search-box { flex: 1; min-width: 200px; padding: 0.6rem 0.85rem; border: 1px solid rgba(0,0,0,0.18); border-radius: 6px; font-size: 0.95rem; outline: none; background: #ffffff; color: var(--text); }
+  .search-box::placeholder { color: rgba(0,0,0,0.55); }
+  .search-box:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-bg); background: #ffffff; }
+
+  .stats { background: var(--bg); padding: 0.75rem 2rem; font-size: 0.8rem; color: var(--text2); }
+  .stats-inner { max-width: 720px; margin: 0 auto; padding: 0 2rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; }
+
+  .content { max-width: 720px; margin: 0 auto; padding: 1rem 2rem 3rem; }
+
+  .article { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem; margin-bottom: 0.75rem; transition: box-shadow 0.15s; }
+  .article:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+  .article-date { font-size: 0.75rem; color: var(--text2); margin-bottom: 0.25rem; }
+  .article-date .date-link { color: inherit; text-decoration: none; cursor: pointer; background: transparent; border: none; padding: 0; font: inherit; }
+  .article-date .date-link:hover { text-decoration: underline; }
+  .article-title { font-size: 1.4rem; font-weight: 600; margin-bottom: 0.5rem; }
+  .article-snippet { font-size: 0.85rem; color: var(--text2); margin-bottom: 0.75rem; }
+  .article-snippet a { color: var(--accent); text-decoration: none; }
+  .article-snippet a:hover { text-decoration: underline; }
+
+  .tags { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+  .tag { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 12px; font-size: 0.7rem; cursor: pointer; }
+  .tag:hover { opacity: 0.8; filter: brightness(0.95); }
+  .tag-person { background: var(--tag-person); }
+  .tag-org { background: var(--tag-org); }
+
+  .pagination { display: flex; gap: 0.5rem; margin-top: 1.5rem; flex-wrap: wrap; }
+  .page-btn { padding: 0.4rem 0.8rem; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); cursor: pointer; font-size: 0.85rem; }
+  .page-btn:hover { background: #f5f5f4; }
+  .page-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
+  .page-btn:disabled { opacity: 0.4; cursor: default; }
+
+  .loading { text-align: center; padding: 4rem 2rem; }
+  .loading-spinner { display: inline-block; width: 32px; height: 32px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-text { margin-top: 1rem; color: var(--text2); font-size: 0.9rem; }
+  .progress-bar { width: 200px; height: 4px; background: var(--border); border-radius: 2px; margin: 0.75rem auto 0; overflow: hidden; }
+  .progress-fill { height: 100%; background: var(--accent); transition: width 0.3s; border-radius: 2px; }
+
+  /* 모바일 */
+  @media (max-width: 768px) {
+    .sidebar { transform: translateX(-100%); transition: transform 0.25s; }
+    .sidebar.open { transform: translateX(0); }
+    .sidebar-toggle { display: block; }
+    .main { margin-left: 0; }
+    .controls { padding: 0.75rem 1rem; }
+    .content { padding: 0.75rem 1rem 3rem; }
+    .stats { padding: 0.5rem 1rem; }
+    .header { padding: 1.2rem 1rem; padding-left: 3.5rem; }
+    .header h1 { font-size: 1.5rem; }
+    .article-title { font-size: 1.2rem; }
+    .header-inner, .controls-inner, .stats-inner { padding: 0 1rem; }
+  }
 </style>
 </head>
 <body>
 
+<!-- 모바일 토글 -->
+<button class="sidebar-toggle" id="sidebarToggle" onclick="toggleSidebar()">&#9776;</button>
+
 <!-- 사이드바 -->
-<aside class="sidebar">
-  <a href="/"><img src="/static/logo.jpg" alt="SlowNews" class="sidebar-logo" /></a>
+<aside class="sidebar" id="sidebar">
+  <h2>슬로우 컨텍스트.</h2>
+  <div class="sub">Slow Context.</div>
 
   <div class="stat-label">아카이브.</div>
   <div class="stat-value" id="sidebarCount">-<span class="unit"> 건.</span></div>
@@ -338,94 +129,82 @@ body {
   <div class="stat-label">기간.</div>
   <div class="date-range" id="sidebarDateRange">로딩 중...</div>
 
-  <hr>
+  <hr class="divider">
 
   <a href="/" class="nav-link active">Archives Search.</a>
   <a href="/context/" class="nav-link">Context Analytics(AI).</a>
   <a href="https://slownews.kr" class="nav-link" target="_blank" rel="noopener">Slow News.</a>
 
   <div class="sidebar-footer">
-    <hr>
+    <hr class="divider">
     slownews.net
   </div>
 </aside>
 
 <!-- 메인 -->
 <div class="main">
-  <div class="container">
-    <div id="loading" class="loading">
+  <div class="header">
+    <div class="header-inner">
+      <h1 id="homeTitle" title="검색 초기화">SlowLetter Finder.</h1>
+    </div>
+  </div>
+
+  <div class="controls">
+    <div class="controls-inner">
+      <input type="text" class="search-box" id="searchInput" placeholder="">
+      <select id="sortSelect" style="padding:0.6rem 0.6rem;border:1px solid rgba(0,0,0,0.18);border-radius:6px;font-size:0.85rem;background:#ffffff;color:var(--text);cursor:pointer;">
+        <option value="newest">최신순</option>
+        <option value="oldest">과거순</option>
+        <option value="relevance">관련도순</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="stats" id="stats">
+    <div class="stats-inner" id="statsInner">
+      <span>데이터 로딩 중...</span>
+    </div>
+  </div>
+
+  <div class="content" id="content">
+    <div class="loading" id="loading">
       <div class="loading-spinner"></div>
-      <div style="margin-top:1rem;">데이터를 불러오는 중...</div>
+      <div class="loading-text">데이터를 불러오는 중...</div>
+      <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
     </div>
-
-    <div id="searchArea" class="box" style="display:none;">
-      <div class="search-box">
-        <input type="text" id="searchInput" placeholder="검색...">
-        <select id="sortSelect">
-          <option value="newest">최신순</option>
-          <option value="oldest">과거순</option>
-          <option value="relevance">관련도순</option>
-        </select>
-      </div>
-    </div>
-
-    <div id="stats" class="stats" style="display:none;"></div>
-
-    <div id="content"></div>
   </div>
 </div>
 
 <script>
 const PER_PAGE = 30;
+const DEFAULT_SEARCH_PLACEHOLDER = '';
 let allData = [];
 let filtered = [];
 let currentPage = 1;
+let searchDebounce = null;
 let selectedDate = null;
-let singleArticleMode = false;
 
-// URL 파라미터
-function getUrlParam(name) {
-  const params = new URLSearchParams(window.location.search);
-  return params.get(name);
-}
+const TYPE_MAP = {
+  person: { label: '인물', cls: 'tag-person' },
+  org: { label: '조직', cls: 'tag-org' }
+};
 
-// 엔티티 파싱
 function parseEntities(str) {
   if (!str || str.trim() === '') return [];
   return str.split(';').map(s => s.trim()).filter(s => s.length > 0);
 }
 
-// HTML 이스케이프
-function escapeHtml(str) {
-  const div = document.createElement('div');
-  div.textContent = str;
-  return div.innerHTML;
-}
+function loadData(retryCount) {
+  retryCount = retryCount || 0;
+  const csvPath = 'data/context/slowletter_web.csv';
+  let rowCount = 0;
 
-// 컨텐츠 포맷팅 (링크 보존)
-function formatContent(text) {
-  let safe = text.replace(/<br\s*\/?>/g, '%%BR%%');
-  const links = [];
-  safe = safe.replace(/<a\s+href="(https?:\/\/[^"]+)"[^>]*>([^<]*)<\/a>/g, (m, url, label) => {
-    links.push({label, url});
-    return '%%LINK' + (links.length - 1) + '%%';
-  });
-  safe = escapeHtml(safe);
-  safe = safe.replace(/%%LINK(\d+)%%/g, (m, i) => {
-    const l = links[parseInt(i)];
-    return '<a href="' + l.url + '" target="_blank" rel="noopener">' + escapeHtml(l.label) + '</a>';
-  });
-  safe = safe.replace(/%%BR%%/g, '<br>');
-  return safe;
-}
-
-// 데이터 로딩
-function loadData() {
-  Papa.parse('data/context/slowletter_web.csv', {
+  Papa.parse(csvPath, {
     download: true,
     header: true,
     skipEmptyLines: true,
-    complete: function(results) {
+    downloadRequestHeaders: {},
+    chunk: function(results) {
       for (const row of results.data) {
         if (!row.title || !row.date) continue;
         const item = {
@@ -440,43 +219,58 @@ function loadData() {
           item.persons.join(' ') + ' ' + item.orgs.join(' ')).toLowerCase();
         allData.push(item);
       }
-      
-      allData.sort((a, b) => b.date.localeCompare(a.date));
-      
-      // 사이드바 업데이트
-      document.getElementById('sidebarCount').innerHTML = allData.length.toLocaleString() + '<span class="unit"> 건.</span>';
-      if (allData.length > 0) {
-        const minDate = allData[allData.length - 1].date;
-        const maxDate = allData[0].date;
-        document.getElementById('sidebarDateRange').textContent = minDate + ' ~ ' + maxDate;
-      }
-      
-      document.getElementById('loading').style.display = 'none';
-      
-      // URL 파라미터 체크
-      const docId = getUrlParam('doc');
-      if (docId) {
-        renderSingleArticle(docId);
-      } else {
-        document.getElementById('searchArea').style.display = 'block';
-        document.getElementById('stats').style.display = 'flex';
-        applyFilters();
-      }
+      rowCount += results.data.length;
+      const pct = Math.min(95, Math.round(rowCount / 180));
+      document.getElementById('progressFill').style.width = pct + '%';
     },
-    error: function() {
-      document.getElementById('loading').innerHTML = '<div class="loading"><div class="loading-text">데이터 로딩 실패</div></div>';
+    complete: function() {
+      document.getElementById('progressFill').style.width = '100%';
+      allData.sort((a, b) => b.date.localeCompare(a.date));
+      updateSidebarStats();
+      applyFilters();
+      document.getElementById('loading').style.display = 'none';
+    },
+    error: function(err) {
+      if (retryCount < 2) {
+        allData = [];
+        document.getElementById('loading').innerHTML =
+          '<div class="loading"><div class="loading-spinner"></div><div class="loading-text">재시도 중... (' + (retryCount + 1) + '/2)</div><div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div></div>';
+        setTimeout(function() { loadData(retryCount + 1); }, 1500);
+      } else {
+        document.getElementById('loading').innerHTML =
+          '<div style="color:#dc2626;text-align:left;padding:2rem 0;">' +
+          'CSV 파일을 불러올 수 없습니다.<br>' +
+          '<small style="color:#a8a29e">네트워크 연결을 확인하고 페이지를 새로고침 해주세요.</small>' +
+          '<br><button onclick="location.reload()" style="margin-top:1rem;padding:0.4rem 1rem;border:1px solid #e7e5e4;border-radius:6px;background:#fff;cursor:pointer;font-size:0.85rem;">새로고침</button></div>';
+      }
     }
   });
 }
 
-// 필터 적용
+function updateSidebarStats() {
+  const countEl = document.getElementById('sidebarCount');
+  const dateEl = document.getElementById('sidebarDateRange');
+  if (countEl) countEl.innerHTML = allData.length.toLocaleString() + '<span class="unit"> 건.</span>';
+  if (dateEl && allData.length > 0) {
+    const oldest = allData[allData.length - 1].date.substring(0, 7);
+    const newest = allData[0].date.substring(0, 7);
+    dateEl.textContent = oldest + ' ~ ' + newest;
+  }
+}
+
+function countOccurrences(text, query) {
+  let count = 0;
+  let pos = 0;
+  while ((pos = text.indexOf(query, pos)) !== -1) { count++; pos += query.length; }
+  return count;
+}
+
 function applyFilters() {
-  singleArticleMode = false;
   const query = document.getElementById('searchInput').value.toLowerCase().trim();
   const sortMode = document.getElementById('sortSelect').value;
 
   filtered = allData.filter(item => {
-    if (selectedDate && item.date !== selectedDate) return false;
+    if (!query && selectedDate && item.date !== selectedDate) return false;
     if (query && !item._search.includes(query)) return false;
     return true;
   });
@@ -489,7 +283,10 @@ function applyFilters() {
     filtered.sort((a, b) => {
       const aTitle = a.title.toLowerCase().includes(query) ? 10 : 0;
       const bTitle = b.title.toLowerCase().includes(query) ? 10 : 0;
-      return (bTitle - aTitle) || b.date.localeCompare(a.date);
+      const aCount = countOccurrences(a._search, query);
+      const bCount = countOccurrences(b._search, query);
+      const diff = (bTitle + bCount) - (aTitle + aCount);
+      return diff !== 0 ? diff : b.date.localeCompare(a.date);
     });
   }
 
@@ -497,128 +294,181 @@ function applyFilters() {
   render();
 }
 
-// 렌더링
 function render() {
   const totalPages = Math.ceil(filtered.length / PER_PAGE);
   const start = (currentPage - 1) * PER_PAGE;
   const pageItems = filtered.slice(start, start + PER_PAGE);
+  const query = document.getElementById('searchInput').value.toLowerCase().trim();
 
-  // 통계
-  const statsText = `전체 ${allData.length.toLocaleString()}건 가운데 ${filtered.length.toLocaleString()}건` +
-    (selectedDate ? ` (날짜: ${selectedDate})` : '');
-  document.getElementById('stats').innerHTML = 
-    `<span>${statsText}</span><span>${currentPage} / ${Math.max(1, totalPages)}</span>`;
+  document.getElementById('statsInner').innerHTML =
+    `<span>전체 ${allData.length.toLocaleString()}건 가운데 ${filtered.length.toLocaleString()}건.${(!query && selectedDate) ? ' (날짜: ' + selectedDate + ')' : ''}</span>
+     <span>${currentPage} / ${Math.max(1, totalPages)}</span>`;
 
-  // 컨텐츠
-  const content = document.getElementById('content');
+  const contentEl = document.getElementById('content');
   if (pageItems.length === 0) {
-    content.innerHTML = '<div class="box">검색 결과가 없습니다</div>';
+    contentEl.innerHTML = '<div style="text-align:left;padding:3rem 0;color:#a8a29e">검색 결과가 없습니다</div>';
     return;
   }
 
   let html = '';
   for (const item of pageItems) {
-    html += `<div class="box article">
-      <div class="article-date">
-        <a href="javascript:void(0)" onclick="filterDate('${item.date}')">${item.date}</a>
-      </div>
-      <div class="article-title"><a href="?doc=${item.id}" style="color:inherit;text-decoration:none;">${escapeHtml(item.title)}</a></div>
-      <div class="article-content">${formatContent(item.content)}</div>
+    const formattedContent = formatContent(item.content);
+    html += `<div class="article">
+      <div class="article-date"><button class="date-link" onclick="filterDate('${item.date}')">${item.date}.</button></div>
+      <div class="article-title">${escapeHtml(item.title)}</div>
+      <div class="article-snippet" id="snippet-${item.id}">${formattedContent}</div>
       <div class="tags">
-        ${item.persons.map(p => `<span class="tag tag-person" onclick="searchEntity('${escapeHtml(p)}')">${escapeHtml(p)}</span>`).join('')}
-        ${item.orgs.map(o => `<span class="tag tag-org" onclick="searchEntity('${escapeHtml(o)}')">${escapeHtml(o)}</span>`).join('')}
+        ${renderTags(item.persons, 'person')}
+        ${renderTags(item.orgs, 'org')}
       </div>
     </div>`;
   }
 
-  // 페이지네이션
   html += '<div class="pagination">';
   html += `<button class="page-btn" onclick="goPage(1)" ${currentPage === 1 ? 'disabled' : ''}>&laquo;</button>`;
   html += `<button class="page-btn" onclick="goPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>&lsaquo;</button>`;
-  
+
   const maxVisible = 5;
   let pStart = Math.max(1, currentPage - Math.floor(maxVisible / 2));
   let pEnd = Math.min(totalPages, pStart + maxVisible - 1);
   if (pEnd - pStart < maxVisible - 1) pStart = Math.max(1, pEnd - maxVisible + 1);
-  
+
   for (let i = pStart; i <= pEnd; i++) {
     html += `<button class="page-btn ${i === currentPage ? 'active' : ''}" onclick="goPage(${i})">${i}</button>`;
   }
-  
+
   html += `<button class="page-btn" onclick="goPage(${currentPage + 1})" ${currentPage >= totalPages ? 'disabled' : ''}>&rsaquo;</button>`;
   html += `<button class="page-btn" onclick="goPage(${totalPages})" ${currentPage >= totalPages ? 'disabled' : ''}>&raquo;</button>`;
   html += '</div>';
 
-  content.innerHTML = html;
-  window.scrollTo({top: 0, behavior: 'smooth'});
+  contentEl.innerHTML = html;
 }
 
-// 개별 기사
-function renderSingleArticle(id) {
-  singleArticleMode = true;
-  document.getElementById('searchArea').style.display = 'none';
-  document.getElementById('stats').style.display = 'none';
-  
-  const item = allData.find(a => a.id === id);
-  const content = document.getElementById('content');
-  
-  if (!item) {
-    content.innerHTML = '<div class="box">기사를 찾을 수 없습니다</div>';
-    return;
-  }
-  
-  const html = `<div class="box single-article">
-    <div class="article-date">
-      <a href="javascript:void(0)" onclick="filterDate('${item.date}')">${item.date}</a>
-    </div>
-    <div class="article-title">${escapeHtml(item.title)}</div>
-    <div class="article-content">${formatContent(item.content)}</div>
-    <div class="tags">
-      ${item.persons.map(p => `<span class="tag tag-person" onclick="searchEntity('${escapeHtml(p)}')">${escapeHtml(p)}</span>`).join('')}
-      ${item.orgs.map(o => `<span class="tag tag-org" onclick="searchEntity('${escapeHtml(o)}')">${escapeHtml(o)}</span>`).join('')}
-    </div>
-  </div>`;
-  
-  content.innerHTML = html;
-  window.scrollTo({top: 0, behavior: 'instant'});
+function formatContent(text) {
+  let safe = text.replace(/<br\s*\/?>/g, '%%BR%%');
+  const links = [];
+  safe = safe.replace(/<a\s+href="(https?:\/\/[^"]+)"[^>]*>([^<]*)<\/a>/g, (m, url, label) => {
+    links.push({label, url});
+    return '%%LINK' + (links.length - 1) + '%%';
+  });
+  safe = safe.replace(/\[([^\]]*)\]\((https?:\/\/[^)]+)\)/g, (m, label, url) => {
+    links.push({label, url});
+    return '%%LINK' + (links.length - 1) + '%%';
+  });
+  safe = escapeHtml(safe);
+  safe = safe.replace(/%%LINK(\d+)%%/g, (m, i) => {
+    const l = links[parseInt(i)];
+    return '<a href="' + l.url + '" target="_blank" rel="noopener">' + escapeHtml(l.label) + '</a>';
+  });
+  safe = safe.replace(/%%BR%%/g, '<br>');
+  return safe;
 }
 
-// 날짜 필터
-function filterDate(dateStr) {
-  selectedDate = dateStr;
-  window.history.pushState({}, '', window.location.pathname);
-  document.getElementById('searchArea').style.display = 'block';
-  document.getElementById('stats').style.display = 'flex';
-  document.getElementById('searchInput').value = '';
-  applyFilters();
+function renderTags(entities, type) {
+  const info = TYPE_MAP[type];
+  return entities.map(e =>
+    `<span class="tag ${info.cls}" onclick="searchEntity('${escapeAttr(e)}')" title="${info.label}: ${escapeAttr(e)}">${escapeHtml(e)}</span>`
+  ).join('');
 }
 
-// 엔티티 검색
-function searchEntity(entity) {
+function escapeHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function escapeAttr(s) {
+  return s.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+}
+
+function searchEntity(name) {
   selectedDate = null;
-  window.history.pushState({}, '', window.location.pathname);
-  document.getElementById('searchArea').style.display = 'block';
-  document.getElementById('stats').style.display = 'flex';
-  document.getElementById('searchInput').value = entity;
+  const searchInput = document.getElementById('searchInput');
+  if (searchInput) {
+    searchInput.value = name;
+    searchInput.placeholder = DEFAULT_SEARCH_PLACEHOLDER;
+  }
   applyFilters();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-// 페이지 이동
 function goPage(n) {
   const totalPages = Math.ceil(filtered.length / PER_PAGE);
   currentPage = Math.max(1, Math.min(n, totalPages));
   render();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-// 이벤트 리스너
-document.getElementById('searchInput').addEventListener('input', () => {
+function resetToHome() {
+  const searchInput = document.getElementById('searchInput');
+  const sortSelect = document.getElementById('sortSelect');
   selectedDate = null;
+  if (searchInput) {
+    searchInput.value = '';
+    searchInput.placeholder = DEFAULT_SEARCH_PLACEHOLDER;
+  }
+  if (sortSelect) sortSelect.value = 'newest';
   applyFilters();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function filterDate(dateStr) {
+  selectedDate = dateStr;
+  const searchInput = document.getElementById('searchInput');
+  const sortSelect = document.getElementById('sortSelect');
+  if (searchInput) {
+    searchInput.value = '';
+    searchInput.placeholder = `날짜: ${selectedDate}`;
+  }
+  if (sortSelect) sortSelect.value = 'newest';
+  applyFilters();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function quickSearch(keyword) {
+  selectedDate = null;
+  const searchInput = document.getElementById('searchInput');
+  if (searchInput) {
+    searchInput.value = keyword;
+    searchInput.placeholder = DEFAULT_SEARCH_PLACEHOLDER;
+  }
+  applyFilters();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  // 모바일에서 사이드바 닫기
+  document.getElementById('sidebar').classList.remove('open');
+}
+
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+}
+
+// Event listeners
+document.getElementById('searchInput').addEventListener('input', () => {
+  clearTimeout(searchDebounce);
+  searchDebounce = setTimeout(() => {
+    const q = document.getElementById('searchInput').value.toLowerCase().trim();
+    if (q) {
+      selectedDate = null;
+      document.getElementById('searchInput').placeholder = DEFAULT_SEARCH_PLACEHOLDER;
+    }
+    applyFilters();
+  }, 300);
 });
 
 document.getElementById('sortSelect').addEventListener('change', applyFilters);
 
-// 로드
+document.getElementById('homeTitle').addEventListener('click', (e) => {
+  e.preventDefault();
+  resetToHome();
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === '/' && document.activeElement.tagName !== 'INPUT') {
+    e.preventDefault();
+    document.getElementById('searchInput').focus();
+  }
+});
+
 loadData();
 </script>
 </body>

@@ -91,6 +91,7 @@ class SlowLetterAgent:
 
         tool_calls_log = []
         round_count = 0
+        self.tool_executor.clear_sources()  # 소스 초기화
 
         while round_count < self.max_tool_rounds:
             round_count += 1
@@ -121,6 +122,7 @@ class SlowLetterAgent:
                     "answer": answer_text,
                     "tool_calls": tool_calls_log,
                     "rounds": round_count,
+                    "sources": self.tool_executor.last_sources,
                 }
 
             elif response.stop_reason == "tool_use":
@@ -157,12 +159,14 @@ class SlowLetterAgent:
                     "answer": "응답 생성 중 오류가 발생했습니다.",
                     "tool_calls": tool_calls_log,
                     "rounds": round_count,
+                    "sources": self.tool_executor.last_sources,
                 }
 
         return {
             "answer": "최대 도구 호출 횟수를 초과했습니다.",
             "tool_calls": tool_calls_log,
             "rounds": round_count,
+            "sources": self.tool_executor.last_sources,
         }
 
     def stream_query(self, user_question: str):
