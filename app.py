@@ -207,7 +207,7 @@ if query:
             API_URL = os.getenv("API_URL", "http://localhost:8000")
             response = requests.post(
                 f"{API_URL}/query",
-                json={"query": query},
+                json={"question": query},
                 timeout=120
             )
             
