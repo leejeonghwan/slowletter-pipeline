@@ -42,6 +42,15 @@ st.markdown("""<style>
     padding-bottom: 2rem;
 }
 
+/* 메인 텍스트 색상 검정 */
+.main h1, .main h2, .main h3, .main p, .main span, .main label,
+.main .stMarkdown, .main [data-testid="stText"] {
+    color: #1c1917 !important;
+}
+
+/* 스피너 텍스트 검정 */
+.stSpinner > div { color: #1c1917 !important; }
+
 /* 검색 입력창 */
 .stTextInput > div > div > input {
     background-color: white; color: #1c1917;
@@ -62,14 +71,6 @@ st.markdown("""<style>
 .stFormSubmitButton button:hover {
     background-color: #fdad00 !important; color: #1c1917 !important;
 }
-
-/* 예시 질문 버튼 */
-.stButton button {
-    background-color: transparent !important; color: #57534e !important;
-    border: 1px solid rgba(0,0,0,0.12) !important; border-radius: 6px !important;
-    font-size: 0.8rem !important; padding: 0.4rem 0.8rem !important;
-}
-.stButton button:hover { background-color: #fff !important; color: #1c1917 !important; }
 
 /* form 테두리 제거 */
 [data-testid="stForm"] { border: none !important; padding: 0 !important; }
@@ -218,24 +219,6 @@ def render_answer_card(result):
     sources = result.get("sources", [])
     rounds = result.get("rounds", 0)
 
-    safe = html_mod.escape(answer).replace("\n", "<br>")
-
-    # 인용 기사
-    ref_html = ""
-    if sources:
-        items = []
-        for src in sources:
-            d = html_mod.escape(str(src.get("date", "")))
-            t = html_mod.escape(str(src.get("title", "")))
-            doc_id = html_mod.escape(str(src.get("id", "")))
-            link = f'<a href="/?doc={doc_id}" target="_blank" style="color:#1c1917;text-decoration:none">{t}</a>' if doc_id else t
-            items.append(f'<div style="font-size:0.82rem;color:#57534e;line-height:1.6;padding:0.15rem 0"><span style="color:#a8a29e;font-size:0.75rem;margin-right:0.4rem">{d}</span>{link}</div>')
-        ref_html = (
-            '<div style="margin-top:1.5rem;padding-top:1rem;border-top:1px solid #f0f0f0">'
-            '<div style="font-size:0.78rem;font-weight:600;color:#a8a29e;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.5rem">관련 기사</div>'
-            + "".join(items) + '</div>'
-        )
-
     # 도구 배지
     badges = ""
     for tc in tool_calls:
@@ -248,15 +231,51 @@ def render_answer_card(result):
             f'<span style="font-size:0.8rem">{info[1]}</span>{info[0]}</span>'
         )
 
+    # 헤더 (HTML)
     st.markdown(
-        f'<div style="background:#fff;border-radius:12px;padding:2rem;margin:1.5rem 0;'
-        f'box-shadow:0 2px 12px rgba(0,0,0,0.08);border-left:4px solid #fdad00">'
-        f'<div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:1rem;'
-        f'padding-bottom:0.75rem;border-bottom:1px solid #f0f0f0">'
-        f'<span style="font-size:1.2rem">✦</span>'
-        f'<span style="font-size:0.85rem;font-weight:600;color:#1c1917;'
-        f'text-transform:uppercase;letter-spacing:0.03em">AI 분석 결과</span></div>'
-        f'<div style="font-size:0.95rem;line-height:1.75;color:#1c1917">{safe}</div>'
+        '<div style="background:#fff;border-radius:12px 12px 0 0;padding:2rem 2rem 0;margin-top:1.5rem;'
+        'box-shadow:0 2px 12px rgba(0,0,0,0.08);border-left:4px solid #fdad00">'
+        '<div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:1rem;'
+        'padding-bottom:0.75rem;border-bottom:1px solid #f0f0f0">'
+        '<span style="font-size:1.2rem">✦</span>'
+        '<span style="font-size:0.85rem;font-weight:600;color:#1c1917;'
+        'text-transform:uppercase;letter-spacing:0.03em">AI 분석 결과</span></div>'
+        '</div>',
+        unsafe_allow_html=True,
+    )
+
+    # 본문 (st.markdown으로 렌더링 — 마크다운 문법 지원)
+    st.markdown(
+        '<div style="background:#fff;padding:0 2rem;border-left:4px solid #fdad00;'
+        'box-shadow:0 2px 12px rgba(0,0,0,0.08)">',
+        unsafe_allow_html=True,
+    )
+    st.markdown(answer)
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    # 관련 기사 목록 + 메타 바 (HTML)
+    ref_html = ""
+    if sources:
+        items = []
+        for src in sources:
+            d = html_mod.escape(str(src.get("date", "")))
+            t = html_mod.escape(str(src.get("title", "")))
+            doc_id = html_mod.escape(str(src.get("id", "")))
+            link = f'<a href="/?doc={doc_id}" target="_blank" style="color:#1c1917;text-decoration:none">{t}</a>' if doc_id else t
+            items.append(
+                f'<div style="font-size:0.82rem;color:#57534e;line-height:1.6;padding:0.15rem 0">'
+                f'<span style="color:#a8a29e;font-size:0.75rem;margin-right:0.4rem">{d}</span>{link}</div>'
+            )
+        ref_html = (
+            '<div style="margin-top:1rem;padding-top:1rem;border-top:1px solid #f0f0f0">'
+            '<div style="font-size:0.78rem;font-weight:600;color:#a8a29e;text-transform:uppercase;'
+            'letter-spacing:0.04em;margin-bottom:0.5rem">관련 기사</div>'
+            + "".join(items) + '</div>'
+        )
+
+    st.markdown(
+        f'<div style="background:#fff;border-radius:0 0 12px 12px;padding:0 2rem 2rem;'
+        f'margin-bottom:1.5rem;box-shadow:0 2px 12px rgba(0,0,0,0.08);border-left:4px solid #fdad00">'
         f'{ref_html}'
         f'<div style="display:flex;align-items:center;flex-wrap:wrap;gap:0.5rem;'
         f'padding:0.75rem 0;margin-top:0.5rem;border-top:1px solid #f0f0f0;'
@@ -293,11 +312,3 @@ if submitted and question:
 elif "last_result" in st.session_state:
     render_answer_card(st.session_state["last_result"])
 
-# 예시 질문
-cols = st.columns(3)
-examples = ["탄핵 이후 언론 논조 변화는?", "이재명 관련 최근 이슈는?", "AI 관련 보도 트렌드는?"]
-for i, q in enumerate(examples):
-    with cols[i]:
-        if st.button(q, key=f"ex_{i}", use_container_width=True):
-            st.session_state["question_input"] = q
-            st.rerun()
