@@ -28,7 +28,8 @@ def check_password():
     EXPIRY_PUBLIC = os.getenv("EXPIRY_PUBLIC", "2026-03-03")
     EXPIRY_PREMIUM = os.getenv("EXPIRY_PREMIUM", "2026-03-31")
     
-    password = st.text_input("패스워드", type="password", key="password_input")
+    st.markdown('<div class="result-box">', unsafe_allow_html=True)
+    password = st.text_input("패스워드", type="password", key="password_input", label_visibility="collapsed", placeholder="패스워드를 입력하세요")
     
     if st.button("로그인"):
         today = datetime.now().strftime("%Y-%m-%d")
@@ -43,6 +44,8 @@ def check_password():
             st.rerun()
         else:
             st.error("잘못된 패스워드이거나 만료되었습니다")
+    
+    st.markdown('</div>', unsafe_allow_html=True)
     
     return False
 
@@ -187,10 +190,10 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # 메인 로직
+render_sidebar()
+
 if not check_password():
     st.stop()
-
-render_sidebar()
 
 # 검색창
 st.markdown('<div class="result-box">', unsafe_allow_html=True)
