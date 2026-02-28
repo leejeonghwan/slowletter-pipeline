@@ -14,9 +14,10 @@ import pandas as pd
 import re
 import os
 
-# --- 경로 설정 (환경에 맞게 수정) ---
-ARCHIVE_CSV = os.path.expanduser("~/slowletter-pipeline/data/slowletter_data_archives.csv")
-ENTITIES_CSV = os.path.expanduser("~/slowletter-pipeline/data/raw/slowletter_solar_entities.csv")
+# --- 경로 설정 (스크립트 위치 기준 상대경로) ---
+_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+ARCHIVE_CSV = os.path.join(_SCRIPT_DIR, "data", "slowletter_data_archives.csv")
+ENTITIES_CSV = os.path.join(_SCRIPT_DIR, "data", "raw", "slowletter_solar_entities.csv")
 OUTPUT_CSV = ENTITIES_CSV  # 덮어쓰기 (백업 자동 생성)
 
 
