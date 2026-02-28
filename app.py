@@ -249,7 +249,7 @@ def render_answer_and_evidence(question: str, api_ok: bool):
         result = query_agent(question)
 
     st.markdown("---")
-    st.markdown("### 📝 답변:")
+    st.markdown("### 📝 분석 결과:")
     st.markdown(fix_answer_lines(result.get("answer", "")))
 
     st.markdown("---")
@@ -338,15 +338,15 @@ with st.sidebar:
     else:
         st.error("❌ API 연결 안 됨.")
 
-    mode = st.radio("Mode", ["채팅.", "타임라인.", "트렌드."], index=0, label_visibility="collapsed")
+    mode = st.radio("Mode", ["맥락 분석.", "타임라인.", "트렌드."], index=0, label_visibility="collapsed")
 
     st.markdown("---")
-    st.markdown(f"<a href='/' style='display:block;padding:0.4rem 0;font-size:0.85rem;'>Archives Search.</a>", unsafe_allow_html=True)
-    st.markdown(f"<a href='/context/' style='display:block;padding:0.4rem 0;font-size:0.85rem;font-weight:600;'>Context Analytics(후원회원 전용).</a>", unsafe_allow_html=True)
+    st.markdown(f"<a href='/' style='display:block;padding:0.4rem 0;font-size:0.85rem;'>슬로우레터 빠른 검색.</a>", unsafe_allow_html=True)
+    st.markdown(f"<a href='/context/' style='display:block;padding:0.4rem 0;font-size:0.85rem;font-weight:600;'>컨텍스트 분석(후원회원 전용).</a>", unsafe_allow_html=True)
 
 
 # ===== 채팅 모드 =====
-if mode == "채팅.":
+if mode == "맥락 분석.":
     st.markdown(f"# [슬로우 컨텍스트.]({HOME_URL})")
     st.markdown("Slow Context: 슬로우레터 기반의 맥락 분석 서비스.")
 
