@@ -1,12 +1,12 @@
-# SlowNews Pipeline 인수인계 (2026-02-28 세션 3)
+# SlowNews Pipeline 인수인계 (2026-02-28 세션 4)
 
-최종 업데이트: 2026-02-28 23:50
+최종 업데이트: 2026-03-01 00:00
 
 ---
 
 ## 1. 현재 상태
 
-- Git: `main` 브랜치, 최신 커밋 `5c3ca3a` — **push 및 EC2 배포 필요**
+- Git: `main` 브랜치, 최신 커밋 `61d7f29` — **push 및 EC2 배포 필요**
 - 서비스: slownews.net 정상 운영 중
 
 ### 즉시 배포 명령어
@@ -18,7 +18,14 @@ ssh -i slowkey.pem ubuntu@15.165.13.179 \
    sudo systemctl restart slownews-api slownews-app'
 ```
 
-## 2. 이번 세션에서 한 작업 (커밋 3개, 모두 push 대기)
+## 2. 이번 세션에서 한 작업 (세션 4: 커밋 1개, push 대기)
+
+### 2-0. 인덱스 정렬 옵션 마침표 추가 (`61d7f29`)
+
+**index.html**
+- 정렬 드롭다운 옵션에 마침표 추가: 최신순 → 최신순., 과거순 → 과거순., 관련도순 → 관련도순.
+
+## 3. 이전 세션 작업 (세션 3: 커밋 3개, 이미 push 완료)
 
 ### 2-1. 불렛 포맷 통일 + 검색 상한 해제 (`13874f5`)
 
@@ -49,7 +56,7 @@ ssh -i slowkey.pem ubuntu@15.165.13.179 \
   answer = re.sub(r'(?<!\n)(### )', r'\n\n\1', answer)     # 소제목 분리
   ```
 
-## 3. 이전 세션 작업 (이미 배포 완료)
+## 4. 이전 세션 작업 (세션 1~2, 이미 배포 완료)
 
 - **공백 보존** (`d80b5e8`): `extract_li_content()`에서 `<span>` 태그 사이 공백 누락 수정
 - **nan 엔티티 필터** (`4dd7bb4`): `generate_web_csv.py`의 `_normalize_entities()` 진입점에서 nan 체크
@@ -58,7 +65,7 @@ ssh -i slowkey.pem ubuntu@15.165.13.179 \
 - **물결표 이스케이프** (`cfe8222`): `~` → `\~` 마크다운 취소선 방지
 - **답변 후처리** (`954aa76`): `_reformat_answer()` 2차 API 호출로 포맷 변환
 
-## 4. 인프라
+## 5. 인프라
 
 ### EC2 서버
 - IP: `15.165.13.179`, SSH key: `slowkey.pem`
@@ -80,7 +87,7 @@ ssh -i slowkey.pem ubuntu@15.165.13.179 \
 - 프로젝트: `~/slowletter-pipeline/`
 - 일일 크론: `45 0 * * *` → `ec2_daily_update.sh`
 
-## 5. 주요 파일
+## 6. 주요 파일
 
 | 파일 | 역할 |
 |------|------|
@@ -91,7 +98,7 @@ ssh -i slowkey.pem ubuntu@15.165.13.179 \
 | `generate_web_csv.py` | 웹용 CSV 생성 (`_normalize_entities`) |
 | `ec2_daily_update.sh` | 일일 데이터 업데이트 + CDN 캐시 버스팅 |
 
-## 6. 에이전트 출력 포맷
+## 7. 에이전트 출력 포맷
 
 ### 규칙 (SYSTEM_PROMPT + _reformat_answer 동일)
 1. 도입 1~2문장 (소제목 없이)
@@ -104,7 +111,7 @@ ssh -i slowkey.pem ubuntu@15.165.13.179 \
 ### 핵심 교훈
 claude-sonnet-4-5는 멀티턴 도구 사용 중 포맷 지시를 잘 무시함. `_reformat_answer()` 후처리(2차 API 호출)가 가장 확실한 해법. 거기에 더해 `app.py`의 regex 후처리로 인라인 불렛도 강제 줄바꿈.
 
-## 7. 알려진 이슈 / 추후 작업
+## 8. 알려진 이슈 / 추후 작업
 
 - [ ] **배포 후 불렛 줄바꿈 확인**: `5c3ca3a` 배포 후 실제 쿼리로 `\n\n` 줄바꿈 동작 확인
 - [ ] **관련성 개선**: "뉴 이재명" 검색 시 2024년 대선 이전 콘텐츠 혼입. 시간 감쇠(time decay) 검토
@@ -112,12 +119,14 @@ claude-sonnet-4-5는 멀티턴 도구 사용 중 포맷 지시를 잘 무시함.
 - [ ] **`og-image_.png`**: git untracked. .gitignore 추가 또는 삭제
 - [ ] **`deploy_patch.sh`**: 임시 파일. 삭제 가능
 
-## 8. Git 최근 커밋
+## 9. Git 최근 커밋
 
 ```
-5c3ca3a 불렛 줄바꿈: \n → \n\n (마크다운 렌더링 수정)     ← push 대기
-51a6f96 인라인 불렛·소제목 강제 줄바꿈 후처리 추가          ← push 대기
-13874f5 불렛 포맷 강화 + 검색 결과 상한 해제               ← push 대기
+61d7f29 인덱스 정렬 옵션 마침표 추가                       ← push 대기
+cc65818 인수인계 메모 업데이트 (세션 3)
+5c3ca3a 불렛 줄바꿈: \n → \n\n (마크다운 렌더링 수정)
+51a6f96 인라인 불렛·소제목 강제 줄바꿈 후처리 추가
+13874f5 불렛 포맷 강화 + 검색 결과 상한 해제
 0f7d352 일일 업데이트: 서비스명 수정 + CDN 캐시 버스팅 추가
 4dd7bb4 nan 엔티티 필터링: 값 자체가 nan인 경우도 제거
 d80b5e8 extract_li_content 공백 보존: span/strong 태그 사이 공백 누락 수정
