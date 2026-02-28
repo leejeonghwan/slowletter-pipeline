@@ -63,7 +63,7 @@ def _normalize_entities(value, entity_type: str, rules: dict) -> str:
     for entity in entities:
         # 규칙에 매칭되면 변환 (빈 문자열이면 제거)
         canonical = type_rules.get(entity, entity)
-        if not canonical:
+        if not canonical or canonical.lower() == "nan":
             continue
         # 중복 제거 (대소문자 구분)
         if canonical not in seen:
