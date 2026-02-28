@@ -14,3 +14,6 @@ logs/
 *.backup
 *_patched.py
 /tmp/
+
+# SSH 키
+*.pem
