@@ -82,6 +82,10 @@ st.markdown(
       section[data-testid="stSidebar"] [data-testid="stAlert"] * {
         color: #111111 !important;
       }
+      /* 사이드바 라디오 버튼 왼쪽 여백: alert 박스 텍스트와 정렬 */
+      section[data-testid="stSidebar"] [role="radiogroup"] {
+        padding-left: 0.75rem;
+      }
 
       /* === Title style === */
       h1 a, h1 a:visited {
