@@ -137,6 +137,14 @@ def fix_answer_lines(answer: str) -> str:
     if not answer:
         return answer
 
+    # ── 후처리 1: 인라인 불렛/소제목을 줄바꿈으로 분리 ──
+    # "...문장. • 다음 불렛" → "...문장.\n• 다음 불렛"
+    import re as _re
+    # ### 소제목이 줄 시작이 아닌 곳에 있으면 줄바꿈
+    answer = _re.sub(r'(?<!\n)(### )', r'\n\n\1', answer)
+    # • 불렛이 줄 시작이 아닌 곳에 있으면 줄바꿈
+    answer = _re.sub(r'(?<!\n)(• )', r'\n\1', answer)
+
     # ~~취소선~~ 방지: ~ → \~ (단, 소제목 ### 줄은 제외)
     lines = answer.split("\n")
     fixed_lines = []
