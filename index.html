@@ -120,7 +120,7 @@
 
 <!-- 사이드바 -->
 <aside class="sidebar" id="sidebar">
-  <img src="https://img.stibee.com/d846e0cc-c5fc-4bb4-b18f-e064a51c1cd2.png" alt="슬로우레터" style="width:100%;margin-bottom:1.2rem;">
+  <a href="https://slownews.kr" target="_blank" rel="noopener"><img src="https://img.stibee.com/d846e0cc-c5fc-4bb4-b18f-e064a51c1cd2.png" alt="슬로우레터" style="width:100%;margin-bottom:1.2rem;"></a>
 
   <div class="stat-value" id="sidebarCount" style="margin-left:0.4rem;">-<span class="unit"> 건.</span></div>
 
@@ -188,14 +188,29 @@ function parseEntities(str) {
   return str.split(';').map(s => s.trim()).filter(s => s.length > 0);
 }
 
+function openDoc(docId) {
+  history.pushState({ doc: docId }, '', '/?doc=' + encodeURIComponent(docId));
+  renderDocPage(docId);
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function backToList() {
+  history.pushState({}, '', '/');
+  const statsEl = document.getElementById('stats');
+  if (statsEl) statsEl.style.display = '';
+  applyFilters();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
 function renderDocPage(docId) {
   const doc = allData.find(d => d.id === docId);
   const contentEl = document.getElementById('content');
   const statsEl = document.getElementById('stats');
+  const controlsEl = document.querySelector('.controls');
   if (statsEl) statsEl.style.display = 'none';
 
   if (!doc) {
-    contentEl.innerHTML = '<div style="padding:2rem 0;color:#a8a29e;">문서를 찾을 수 없습니다. <a href="/" style="color:#fdad00;">목록으로 돌아가기.</a></div>';
+    contentEl.innerHTML = '<div style="padding:2rem 0;color:#a8a29e;">문서를 찾을 수 없습니다. <a href="/" onclick="event.preventDefault();backToList()" style="color:#fdad00;">목록으로 돌아가기.</a></div>';
     return;
   }
 
@@ -203,10 +218,10 @@ function renderDocPage(docId) {
   contentEl.innerHTML = `
     <div style="padding:1.5rem 0;">
       <div style="margin-bottom:1rem;">
-        <a href="/" style="font-size:0.85rem;color:#fdad00;text-decoration:none;">&larr; 목록으로.</a>
+        <a href="/" onclick="event.preventDefault();backToList()" style="font-size:0.85rem;color:#fdad00;text-decoration:none;">&larr; 목록으로.</a>
       </div>
       <div class="article" style="padding:2rem;">
-        <div style="font-size:0.85rem;margin-bottom:0.5rem;"><button class="date-link" onclick="window.location.href='/?date=${doc.date}'" style="color:#a8a29e;cursor:pointer;background:transparent;border:none;padding:0;font:inherit;font-size:0.85rem;">${doc.date}.</button></div>
+        <div style="font-size:0.85rem;margin-bottom:0.5rem;"><button class="date-link" onclick="backToList();setTimeout(function(){filterDate('${doc.date}')},50)" style="color:#a8a29e;cursor:pointer;background:transparent;border:none;padding:0;font:inherit;font-size:0.85rem;">${doc.date}.</button></div>
         <h2 style="font-size:1.5rem;font-weight:700;color:#1c1917;margin-bottom:1.5rem;line-height:1.4;">${escapeHtml(doc.title)}</h2>
         <div style="font-size:0.95rem;line-height:1.8;color:#1c1917;">${formatted}</div>
         <div style="margin-top:2rem;padding-top:1rem;border-top:1px solid #e7e5e4;">
@@ -351,7 +366,7 @@ function render() {
     const formattedContent = formatContent(item.content);
     html += `<div class="article">
       <div class="article-date"><button class="date-link" onclick="filterDate('${item.date}')">${item.date}.</button></div>
-      <div class="article-title"><a href="/?doc=${encodeURIComponent(item.id)}" style="color:#1c1917;text-decoration:none;">${escapeHtml(item.title)}</a></div>
+      <div class="article-title"><a href="/?doc=${encodeURIComponent(item.id)}" onclick="event.preventDefault();openDoc('${item.id}')" style="color:#1c1917;text-decoration:none;">${escapeHtml(item.title)}</a></div>
       <div class="article-snippet" id="snippet-${item.id}">${formattedContent}</div>
       <div class="tags">
         ${renderTags(item.persons, 'person')}
@@ -502,6 +517,18 @@ document.addEventListener('keydown', (e) => {
   if (e.key === '/' && document.activeElement.tagName !== 'INPUT') {
     e.preventDefault();
     document.getElementById('searchInput').focus();
+  }
+});
+
+window.addEventListener('popstate', (e) => {
+  const urlParams = new URLSearchParams(window.location.search);
+  const docParam = urlParams.get('doc');
+  if (docParam) {
+    renderDocPage(docParam);
+  } else {
+    const statsEl = document.getElementById('stats');
+    if (statsEl) statsEl.style.display = '';
+    applyFilters();
   }
 });
 
