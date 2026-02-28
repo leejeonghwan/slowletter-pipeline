@@ -326,7 +326,10 @@ def render_query_bar(
 HOME_URL = f"{BASE_PUBLIC_URL}/"
 
 with st.sidebar:
-    st.image("https://img.stibee.com/d846e0cc-c5fc-4bb4-b18f-e064a51c1cd2.png", use_container_width=True)
+    st.markdown(
+        '<a href="https://slownews.kr" target="_blank"><img src="https://img.stibee.com/d846e0cc-c5fc-4bb4-b18f-e064a51c1cd2.png" style="width:100%;"></a>',
+        unsafe_allow_html=True,
+    )
 
     n_archives = get_archive_count()
     if n_archives is not None:
