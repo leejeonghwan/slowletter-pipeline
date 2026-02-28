@@ -257,7 +257,7 @@ def render_answer_and_evidence(question: str, api_ok: bool):
     try:
         s = requests.post(
             f"{API_URL}/search",
-            json={"query": question, "top_k": 10},
+            json={"query": question, "top_k": 30},
             timeout=30,
         )
         payload = s.json() if s.status_code == 200 else {"results": []}
@@ -265,7 +265,7 @@ def render_answer_and_evidence(question: str, api_ok: bool):
     except Exception:
         refs = []
 
-    refs = _select_evidence(refs, max_items=10)
+    refs = _select_evidence(refs, max_items=30)
 
     if not refs:
         st.caption("관련 문서를 찾지 못했다.")
