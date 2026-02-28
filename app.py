@@ -341,8 +341,8 @@ with st.sidebar:
     mode = st.radio("Mode", ["맥락 분석.", "타임라인.", "트렌드."], index=0, label_visibility="collapsed")
 
     st.markdown("---")
-    st.link_button("🔍 슬로우레터 빠른 검색.", url="/", use_container_width=True)
-    st.link_button("📝 컨텍스트 분석(후원회원 전용).", url="/context/", use_container_width=True)
+    st.info("[🔍 슬로우레터 빠른 검색.](/)")
+    st.info("[📝 컨텍스트 분석(후원회원 전용).](/context/)")
 
 
 # ===== 채팅 모드 =====
