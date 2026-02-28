@@ -154,10 +154,8 @@
     </div>
   </div>
 
-  <div class="stats" id="stats">
-    <div class="stats-inner" id="statsInner">
-      <span>데이터 로딩 중...</span>
-    </div>
+  <div class="stats" id="stats" style="display:none;">
+    <div class="stats-inner" id="statsInner"></div>
   </div>
 
   <div class="content" id="content">
@@ -351,9 +349,7 @@ function render() {
   const pageItems = filtered.slice(start, start + PER_PAGE);
   const query = document.getElementById('searchInput').value.toLowerCase().trim();
 
-  document.getElementById('statsInner').innerHTML =
-    `<span>전체 ${allData.length.toLocaleString()}건 가운데 ${filtered.length.toLocaleString()}건.${(!query && selectedDate) ? ' (날짜: ' + selectedDate + ')' : ''}</span>
-     <span>${currentPage} / ${Math.max(1, totalPages)}</span>`;
+  const statsText = `<span>전체 ${allData.length.toLocaleString()}건 가운데 ${filtered.length.toLocaleString()}건.${(!query && selectedDate) ? ' (날짜: ' + selectedDate + ')' : ''}</span><span>${currentPage} / ${Math.max(1, totalPages)}</span>`;
 
   const contentEl = document.getElementById('content');
   if (pageItems.length === 0) {
@@ -375,6 +371,7 @@ function render() {
     </div>`;
   }
 
+  html += `<div style="display:flex;justify-content:space-between;align-items:center;font-size:0.8rem;color:#57534e;margin-top:1rem;margin-bottom:0.5rem;">${statsText}</div>`;
   html += '<div class="pagination">';
   html += `<button class="page-btn" onclick="goPage(1)" ${currentPage === 1 ? 'disabled' : ''}>&laquo;</button>`;
   html += `<button class="page-btn" onclick="goPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>&lsaquo;</button>`;
