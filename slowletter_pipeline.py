@@ -111,12 +111,19 @@ def setup_logging():
 # ============================================================
 
 def extract_li_content(li_tag) -> str:
-    """li 태그에서 텍스트와 a href만 추출."""
+    """li 태그에서 텍스트와 a href만 추출.
+
+    원본 HTML의 공백을 보존한다.
+    <span>전기</span> 요금 → "전기 요금" (O)
+    <span>전기</span> 요금 → "전기요금"  (X, 이전 버그)
+    """
     parts = []
     for elem in li_tag.children:
         if isinstance(elem, NavigableString):
-            text = str(elem).strip()
-            if text:
+            # 원본 공백 보존: strip 대신 앞뒤 줄바꿈만 제거
+            text = str(elem).replace("\n", " ").replace("\r", "")
+            text = re.sub(r"  +", " ", text)  # 연속 공백 → 단일 공백
+            if text.strip():
                 parts.append(text)
         elif elem.name == "a" and elem.get("href"):
             parts.append(f'<a href="{elem.get("href")}">{elem.get_text(strip=True)}</a>')
@@ -124,8 +131,9 @@ def extract_li_content(li_tag) -> str:
             inner_parts = []
             for inner in elem.children:
                 if isinstance(inner, NavigableString):
-                    t = str(inner).strip()
-                    if t:
+                    t = str(inner).replace("\n", " ").replace("\r", "")
+                    t = re.sub(r"  +", " ", t)
+                    if t.strip():
                         inner_parts.append(t)
                 elif inner.name == "a" and inner.get("href"):
                     inner_parts.append(
@@ -141,7 +149,10 @@ def extract_li_content(li_tag) -> str:
             t = elem.get_text(strip=True)
             if t:
                 parts.append(t)
-    return "".join(parts)
+    result = "".join(parts)
+    # 최종 정리: 연속 공백 제거, 앞뒤 정리
+    result = re.sub(r"  +", " ", result).strip()
+    return result
 
 
 def load_archive(path: str) -> pd.DataFrame:
