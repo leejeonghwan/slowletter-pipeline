@@ -142,16 +142,16 @@ def fix_answer_lines(answer: str) -> str:
     fixed_lines = []
 
     for line in lines:
-        # 빈 줄이나 제목(#), 구분선(---)은 그대로
         stripped = line.strip()
-        if not stripped or stripped.startswith("#") or stripped.startswith("---"):
+        # 빈 줄이나 구분선(---)은 그대로
+        if not stripped or stripped.startswith("---"):
             fixed_lines.append(line)
             continue
 
         # ~를 \~로 이스케이프 (마크다운 취소선 방지)
         line = line.replace("~", "\\~")
 
-        # 나머지 줄은 마침표 보정
+        # 모든 줄(소제목 포함)에 마침표 보정
         fixed_lines.append(ensure_period(line))
 
     return "\n".join(fixed_lines)
@@ -261,7 +261,7 @@ def render_answer_and_evidence(question: str, api_ok: bool):
     try:
         s = requests.post(
             f"{API_URL}/search",
-            json={"query": question, "top_k": 30},
+            json={"query": question, "top_k": 50},
             timeout=30,
         )
         payload = s.json() if s.status_code == 200 else {"results": []}
@@ -269,7 +269,7 @@ def render_answer_and_evidence(question: str, api_ok: bool):
     except Exception:
         refs = []
 
-    refs = _select_evidence(refs, max_items=30)
+    refs = _select_evidence(refs, max_items=50)
 
     if not refs:
         st.caption("관련 문서를 찾지 못했다.")
