@@ -315,12 +315,19 @@ def finder_page(request: Request):
     html = _get_index_html()
 
     if keyword:
+        from urllib.parse import quote
         og_title = f"슬로우레터 빠른 검색: {keyword}."
         og_desc = f"'{keyword}' 관련 슬로우레터 검색 결과."
+        og_url = f"https://slownews.net/?keyword={quote(keyword)}"
         # OG title
         html = html.replace(
             '<meta property="og:title" content="슬로우레터 빠른 검색.">',
             f'<meta property="og:title" content="{og_title}">',
+        )
+        # OG url (페이스북이 정식 URL로 인식)
+        html = html.replace(
+            '<meta property="og:url" content="https://slownews.net/">',
+            f'<meta property="og:url" content="{og_url}">',
         )
         # Twitter title
         html = html.replace(
