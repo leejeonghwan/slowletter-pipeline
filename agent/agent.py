@@ -165,8 +165,13 @@ class SlowLetterAgent:
                         answer_text += block.text
 
                 # 소제목/불렛이 없으면 후처리로 포맷 변환
-                if "### " not in answer_text or "• " not in answer_text:
+                has_heading = "### " in answer_text
+                has_bullet = "• " in answer_text
+                print(f"  [Format] ### 소제목: {has_heading}, • 불렛: {has_bullet}")
+                if not has_heading or not has_bullet:
+                    print(f"  [Format] 후처리 시작 (원본 {len(answer_text)}자)")
                     answer_text = self._reformat_answer(answer_text)
+                    print(f"  [Format] 후처리 완료 (결과 {len(answer_text)}자, ### : {'### ' in answer_text}, • : {'• ' in answer_text})")
 
                 return {
                     "answer": answer_text,
@@ -237,6 +242,7 @@ class SlowLetterAgent:
 변환할 텍스트:
 """
         try:
+            print(f"  [Reformat] API 호출 중... (입력 {len(raw_text)}자)")
             resp = self.client.messages.create(
                 model=self.model,
                 max_tokens=self.max_tokens,
@@ -247,12 +253,16 @@ class SlowLetterAgent:
             for block in resp.content:
                 if hasattr(block, "text"):
                     reformatted += block.text
+            print(f"  [Reformat] API 응답 수신 (출력 {len(reformatted)}자)")
+            print(f"  [Reformat] ### 포함: {'### ' in reformatted}, • 포함: {'• ' in reformatted}")
             # 변환 실패 시 원본 반환
             if "### " in reformatted and "• " in reformatted:
+                print(f"  [Reformat] 성공 — 변환본 반환")
                 return reformatted
+            print(f"  [Reformat] 실패 — 원본 반환")
             return raw_text
         except Exception as e:
-            print(f"  [Reformat] 후처리 실패: {e}")
+            print(f"  [Reformat] 후처리 예외: {e}")
             return raw_text
 
     def stream_query(self, user_question: str):

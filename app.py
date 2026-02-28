@@ -133,23 +133,27 @@ def ensure_period(text: str) -> str:
 
 
 def fix_answer_lines(answer: str) -> str:
-    """답변의 각 줄에 마침표 추가"""
+    """답변의 각 줄에 마침표 추가 + 마크다운 특수문자 이스케이프"""
     if not answer:
         return answer
-    
+
+    # ~~취소선~~ 방지: ~ → \~ (단, 소제목 ### 줄은 제외)
     lines = answer.split("\n")
     fixed_lines = []
-    
+
     for line in lines:
         # 빈 줄이나 제목(#), 구분선(---)은 그대로
         stripped = line.strip()
         if not stripped or stripped.startswith("#") or stripped.startswith("---"):
             fixed_lines.append(line)
             continue
-        
+
+        # ~를 \~로 이스케이프 (마크다운 취소선 방지)
+        line = line.replace("~", "\\~")
+
         # 나머지 줄은 마침표 보정
         fixed_lines.append(ensure_period(line))
-    
+
     return "\n".join(fixed_lines)
 
 
