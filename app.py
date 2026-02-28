@@ -138,12 +138,14 @@ def fix_answer_lines(answer: str) -> str:
         return answer
 
     # ── 후처리 1: 인라인 불렛/소제목을 줄바꿈으로 분리 ──
-    # "...문장. • 다음 불렛" → "...문장.\n• 다음 불렛"
+    # 마크다운에서 \n 하나는 무시됨. \n\n(빈 줄)이어야 실제 줄바꿈.
     import re as _re
-    # ### 소제목이 줄 시작이 아닌 곳에 있으면 줄바꿈
+    # ### 소제목이 줄 시작이 아닌 곳에 있으면 빈 줄 삽입
     answer = _re.sub(r'(?<!\n)(### )', r'\n\n\1', answer)
-    # • 불렛이 줄 시작이 아닌 곳에 있으면 줄바꿈
-    answer = _re.sub(r'(?<!\n)(• )', r'\n\1', answer)
+    # • 불렛이 줄 시작이 아닌 곳에 있으면 빈 줄 삽입
+    answer = _re.sub(r'(?<!\n)(• )', r'\n\n\1', answer)
+    # 이미 줄 시작인 • 앞에도 빈 줄이 없으면 추가 (마크다운 렌더링용)
+    answer = _re.sub(r'(?<!\n)\n(• )', r'\n\n\1', answer)
 
     # ~~취소선~~ 방지: ~ → \~ (단, 소제목 ### 줄은 제외)
     lines = answer.split("\n")
