@@ -294,8 +294,14 @@ function loadData(retryCount) {
       const urlParams = new URLSearchParams(window.location.search);
       const docParam = urlParams.get('doc');
       const dateParam = urlParams.get('date');
+      const keywordParam = urlParams.get('keyword');
+      const sortParam = urlParams.get('sort');
+      if (sortParam) document.getElementById('sortSelect').value = sortParam;
       if (docParam) {
         renderDocPage(docParam);
+      } else if (keywordParam) {
+        document.getElementById('searchInput').value = keywordParam;
+        applyFilters();
       } else if (dateParam) {
         selectedDate = dateParam;
         document.getElementById('searchInput').placeholder = dateParam + ' 기사.';
@@ -457,13 +463,13 @@ function escapeAttr(s) {
 
 function searchEntity(name) {
   selectedDate = null;
-  history.pushState(null, '', '/');
   const searchInput = document.getElementById('searchInput');
   if (searchInput) {
     searchInput.value = name;
     searchInput.placeholder = DEFAULT_SEARCH_PLACEHOLDER;
   }
   applyFilters();
+  updateUrl();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -475,7 +481,6 @@ function goPage(n) {
 }
 
 function resetToHome() {
-  history.pushState(null, '', '/');
   const searchInput = document.getElementById('searchInput');
   const sortSelect = document.getElementById('sortSelect');
   selectedDate = null;
@@ -485,12 +490,12 @@ function resetToHome() {
   }
   if (sortSelect) sortSelect.value = 'newest';
   applyFilters();
+  history.pushState(null, '', '/');
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function filterDate(dateStr) {
   selectedDate = dateStr;
-  history.pushState(null, '', '/');
   const searchInput = document.getElementById('searchInput');
   const sortSelect = document.getElementById('sortSelect');
   if (searchInput) {
@@ -499,6 +504,7 @@ function filterDate(dateStr) {
   }
   if (sortSelect) sortSelect.value = 'newest';
   applyFilters();
+  updateUrl();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -510,6 +516,7 @@ function quickSearch(keyword) {
     searchInput.placeholder = DEFAULT_SEARCH_PLACEHOLDER;
   }
   applyFilters();
+  updateUrl();
   window.scrollTo({ top: 0, behavior: 'smooth' });
   // 모바일에서 사이드바 닫기
   document.getElementById('sidebar').classList.remove('open');
@@ -517,6 +524,17 @@ function quickSearch(keyword) {
 
 function toggleSidebar() {
   document.getElementById('sidebar').classList.toggle('open');
+}
+
+function updateUrl() {
+  const q = document.getElementById('searchInput').value.trim();
+  const sort = document.getElementById('sortSelect').value;
+  const params = new URLSearchParams();
+  if (q) params.set('keyword', q);
+  if (selectedDate) params.set('date', selectedDate);
+  if (sort !== 'newest') params.set('sort', sort);
+  const qs = params.toString();
+  history.replaceState(null, '', qs ? '/?' + qs : '/');
 }
 
 // Event listeners
@@ -529,10 +547,11 @@ document.getElementById('searchInput').addEventListener('input', () => {
       document.getElementById('searchInput').placeholder = DEFAULT_SEARCH_PLACEHOLDER;
     }
     applyFilters();
+    updateUrl();
   }, 300);
 });
 
-document.getElementById('sortSelect').addEventListener('change', applyFilters);
+document.getElementById('sortSelect').addEventListener('change', () => { applyFilters(); updateUrl(); });
 
 document.getElementById('homeTitle').addEventListener('click', (e) => {
   e.preventDefault();
@@ -549,11 +568,21 @@ document.addEventListener('keydown', (e) => {
 window.addEventListener('popstate', (e) => {
   const urlParams = new URLSearchParams(window.location.search);
   const docParam = urlParams.get('doc');
+  const keywordParam = urlParams.get('keyword');
   if (docParam) {
     renderDocPage(docParam);
   } else {
     const statsEl = document.getElementById('stats');
     if (statsEl) statsEl.style.display = '';
+    const searchInput = document.getElementById('searchInput');
+    if (keywordParam) {
+      searchInput.value = keywordParam;
+      selectedDate = null;
+    } else {
+      searchInput.value = '';
+      selectedDate = urlParams.get('date') || null;
+      searchInput.placeholder = selectedDate ? selectedDate + ' 기사.' : DEFAULT_SEARCH_PLACEHOLDER;
+    }
     applyFilters();
   }
 });
