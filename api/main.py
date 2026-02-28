@@ -4,14 +4,15 @@ FastAPI 서버
 - /search: 직접 검색
 - /timeline: 엔티티 타임라인
 - /trend: 트렌드 분석
+- /finder: 동적 OG 태그가 포함된 인덱스 페이지
 """
 import os
 import sys
 from pathlib import Path
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import Optional, List
@@ -290,6 +291,59 @@ def health():
         "entity_db": entity_db is not None,
         "hybrid_search": hybrid_search is not None,
     }
+
+
+# ===== 동적 OG 태그 인덱스 페이지 =====
+
+_index_html_cache: Optional[str] = None
+
+def _get_index_html() -> str:
+    """index.html을 읽어 캐시합니다."""
+    global _index_html_cache
+    if _index_html_cache is None:
+        index_path = Path("/var/www/slownews/index.html")
+        if not index_path.exists():
+            index_path = PROJECT_ROOT / "index.html"
+        _index_html_cache = index_path.read_text(encoding="utf-8")
+    return _index_html_cache
+
+
+@app.get("/finder", response_class=HTMLResponse)
+def finder_page(request: Request):
+    """keyword 파라미터가 있으면 OG 태그를 동적으로 치환하여 반환합니다."""
+    keyword = request.query_params.get("keyword", "").strip()
+    html = _get_index_html()
+
+    if keyword:
+        og_title = f"슬로우레터 빠른 검색: {keyword}."
+        og_desc = f"'{keyword}' 관련 슬로우레터 검색 결과."
+        # OG title
+        html = html.replace(
+            '<meta property="og:title" content="슬로우레터 빠른 검색.">',
+            f'<meta property="og:title" content="{og_title}">',
+        )
+        # Twitter title
+        html = html.replace(
+            '<meta name="twitter:title" content="슬로우레터 빠른 검색.">',
+            f'<meta name="twitter:title" content="{og_title}">',
+        )
+        # OG description
+        html = html.replace(
+            '<meta property="og:description" content="뉴스를 읽는 습관: 슬로우레터, 뉴스의 맥락과 구조를 짚어드립니다.">',
+            f'<meta property="og:description" content="{og_desc}">',
+        )
+        # Twitter description
+        html = html.replace(
+            '<meta name="twitter:description" content="뉴스를 읽는 습관: 슬로우레터, 뉴스의 맥락과 구조를 짚어드립니다.">',
+            f'<meta name="twitter:description" content="{og_desc}">',
+        )
+        # page title
+        html = html.replace(
+            '<title>슬로우레터 빠른 검색.</title>',
+            f'<title>{og_title}</title>',
+        )
+
+    return HTMLResponse(content=html)
 
 
 if __name__ == "__main__":

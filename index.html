@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SlowLetter Finder.</title>
+<title>슬로우레터 빠른 검색.</title>
 
 <!-- 파비콘 -->
 <link rel="icon" type="image/png" href="/favicon.png">
@@ -301,6 +301,7 @@ function loadData(retryCount) {
         renderDocPage(docParam);
       } else if (keywordParam) {
         document.getElementById('searchInput').value = keywordParam;
+        document.title = '슬로우레터 빠른 검색: ' + keywordParam + '.';
         applyFilters();
       } else if (dateParam) {
         selectedDate = dateParam;
@@ -489,6 +490,7 @@ function resetToHome() {
     searchInput.placeholder = DEFAULT_SEARCH_PLACEHOLDER;
   }
   if (sortSelect) sortSelect.value = 'newest';
+  document.title = DEFAULT_TITLE;
   applyFilters();
   history.pushState(null, '', '/');
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -526,6 +528,8 @@ function toggleSidebar() {
   document.getElementById('sidebar').classList.toggle('open');
 }
 
+const DEFAULT_TITLE = '슬로우레터 빠른 검색.';
+
 function updateUrl() {
   const q = document.getElementById('searchInput').value.trim();
   const sort = document.getElementById('sortSelect').value;
@@ -535,6 +539,7 @@ function updateUrl() {
   if (sort !== 'newest') params.set('sort', sort);
   const qs = params.toString();
   history.replaceState(null, '', qs ? '/?' + qs : '/');
+  document.title = q ? '슬로우레터 빠른 검색: ' + q + '.' : DEFAULT_TITLE;
 }
 
 // Event listeners
