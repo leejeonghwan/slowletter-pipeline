@@ -91,6 +91,23 @@ st.markdown(
       h1 a:hover {
         text-decoration: none;
       }
+
+      /* === Mobile (반응형) === */
+      @media (max-width: 768px) {
+        section.main .block-container {
+          padding-left: 1rem;
+          padding-right: 1rem;
+        }
+        /* Streamlit 사이드바 기본 접힘 처리 */
+        section[data-testid="stSidebar"] {
+          min-width: 0 !important;
+          max-width: 0 !important;
+        }
+        section[data-testid="stSidebar"][aria-expanded="true"] {
+          min-width: 260px !important;
+          max-width: 260px !important;
+        }
+      }
     </style>
     """,
     unsafe_allow_html=True,
@@ -248,38 +265,102 @@ def render_answer_and_evidence(question: str, api_ok: bool):
     with st.spinner("분석 중... (최대 1~2분 소요)"):
         result = query_agent(question)
 
-    st.markdown("---")
-    st.markdown("### 📝 답변:")
-    st.markdown(fix_answer_lines(result.get("answer", "")))
+    answer_text = fix_answer_lines(result.get("answer", ""))
+    rounds = result.get("rounds", 0)
+    tool_calls = result.get("tool_calls", [])
+    sources = result.get("sources", [])
 
+    # === 답변 박스 ===
     st.markdown("---")
-    st.subheader("텍스트.")
-    try:
-        s = requests.post(
-            f"{API_URL}/search",
-            json={"query": question, "top_k": 10},
-            timeout=30,
-        )
-        payload = s.json() if s.status_code == 200 else {"results": []}
-        refs = payload.get("results", []) or []
-    except Exception:
+    st.markdown(
+        f"""<div style="background:#111;border:1px solid #333;border-radius:10px;padding:1.5rem;margin:0.5rem 0 1rem 0;">
+<div style="font-size:0.75rem;color:#a8a29e;margin-bottom:0.75rem;display:flex;align-items:center;gap:0.5rem;">
+<span style="background:#fdad00;color:#111;padding:0.15rem 0.5rem;border-radius:4px;font-weight:600;">Context</span>
+<span>{rounds}단계 분석 · {len(tool_calls)}개 도구 사용</span>
+</div>
+<div style="color:#e7e5e4;line-height:1.8;font-size:0.95rem;">{answer_text}</div>
+</div>""",
+        unsafe_allow_html=True,
+    )
+
+    # === 근거 문서 (sources from /query, fallback to /search) ===
+    if not sources:
+        try:
+            s = requests.post(
+                f"{API_URL}/search",
+                json={"query": question, "top_k": 10},
+                timeout=30,
+            )
+            payload = s.json() if s.status_code == 200 else {"results": []}
+            refs = payload.get("results", []) or []
+        except Exception:
+            refs = []
+    else:
+        # sources from /query response → convert to same format
         refs = []
+        for src in sources:
+            if isinstance(src, dict):
+                refs.append(src)
+            else:
+                refs.append({
+                    "doc_id": getattr(src, "id", ""),
+                    "title": getattr(src, "title", ""),
+                    "date": getattr(src, "date", ""),
+                    "snippet": getattr(src, "snippet", ""),
+                    "persons": getattr(src, "persons", ""),
+                    "organizations": getattr(src, "organizations", ""),
+                })
 
     refs = _select_evidence(refs, max_items=10)
 
+    st.markdown(
+        "<div style='font-size:0.85rem;color:#a8a29e;margin:1rem 0 0.5rem 0;'>근거 텍스트.</div>",
+        unsafe_allow_html=True,
+    )
+
     if not refs:
-        st.caption("관련 문서를 찾지 못했다.")
+        st.markdown(
+            "<div style='color:#666;font-size:0.85rem;padding:1rem 0;'>관련 문서를 찾지 못했습니다. 다른 키워드로 검색해 보세요.</div>",
+            unsafe_allow_html=True,
+        )
     else:
         for i, r in enumerate(refs, 1):
-            doc_id = r.get("doc_id", "")
+            doc_id = r.get("doc_id", r.get("id", ""))
             title = ensure_period(r.get("title", ""))
             date = r.get("date", "")
+            snippet = r.get("snippet", "")[:200]
+            persons = r.get("persons", "")
+            orgs = r.get("organizations", r.get("orgs", ""))
             link = f"{BASE_PUBLIC_URL}/?doc={doc_id}" if doc_id else ""
 
-            if link:
-                st.markdown(f"{i}. ({date}) [{title}]({link})")
-            else:
-                st.markdown(f"{i}. ({date}) {title}")
+            # 엔티티 태그 HTML
+            tags_html = ""
+            if persons:
+                for p in persons.split(";")[:3]:
+                    p = p.strip()
+                    if p:
+                        tags_html += f"<span style='display:inline-block;background:#fdad00;color:#111;padding:0.1rem 0.4rem;border-radius:10px;font-size:0.65rem;margin-right:0.25rem;'>{p}</span>"
+            if orgs:
+                for o in orgs.split(";")[:3]:
+                    o = o.strip()
+                    if o:
+                        tags_html += f"<span style='display:inline-block;background:#bbf7d0;color:#111;padding:0.1rem 0.4rem;border-radius:10px;font-size:0.65rem;margin-right:0.25rem;'>{o}</span>"
+
+            title_html = f'<a href="{link}" target="_blank" style="color:#fdad00;text-decoration:none;">{title}</a>' if link else title
+            snippet_html = f"<div style='font-size:0.8rem;color:#888;margin-top:0.25rem;line-height:1.5;'>{snippet}</div>" if snippet else ""
+
+            st.markdown(
+                f"""<div style="background:#0a0a0a;border:1px solid #222;border-radius:8px;padding:0.8rem 1rem;margin-bottom:0.5rem;">
+<div style="display:flex;align-items:baseline;gap:0.5rem;">
+<span style="color:#666;font-size:0.75rem;font-weight:600;">{i}</span>
+<span style="color:#a8a29e;font-size:0.75rem;">{date}</span>
+<span style="flex:1;">{title_html}</span>
+</div>
+{snippet_html}
+<div style="margin-top:0.35rem;">{tags_html}</div>
+</div>""",
+                unsafe_allow_html=True,
+            )
 
 
 from typing import List
