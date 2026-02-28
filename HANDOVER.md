@@ -1,155 +1,127 @@
-# SlowNews 프로젝트 인수인계 메모
+# SlowNews Pipeline 인수인계 (2026-02-28 세션 3)
 
-최종 업데이트: 2026-02-28
+최종 업데이트: 2026-02-28 23:50
 
 ---
 
-## 1. 프로젝트 개요
+## 1. 현재 상태
 
-SlowNews(slownews.net)는 이정환 기자의 뉴스 큐레이션 레터 '슬로우레터' 데이터베이스(2023.04~현재, 약 18,000건)를 기반으로 한 뉴스 맥락 분석 서비스다.
+- Git: `main` 브랜치, 최신 커밋 `5c3ca3a` — **push 및 EC2 배포 필요**
+- 서비스: slownews.net 정상 운영 중
 
-- **메인 페이지** (slownews.net): 정적 HTML, nginx로 서빙
-- **Context 페이지** (/context): Streamlit 기반 AI 분석 인터페이스 (Claude Sonnet 4.5 RAG)
-- **타임라인/트렌드 페이지**: 엔티티별 보도 흐름 시각화
-
-## 2. 인프라
-
-### EC2 서버
-- **IP**: 15.165.13.179
-- **타입**: t3.large (2 vCPU, 8GB RAM)
-- **SSH**: `ssh -i ~/slowletter-pipeline/slowkey.pem ubuntu@15.165.13.179`
-
-### Systemd 서비스 (중요!)
-
-| 서비스명 | 역할 | 상태 | 비고 |
-|----------|------|------|------|
-| `slownews-api` | FastAPI API 서버 (포트 8000) | ✅ 사용 중 | 재시작 대상 |
-| `slownews-app` | Streamlit 프론트엔드 (포트 8510) | ✅ 사용 중 | 재시작 대상 |
-| `slowletter-api` | 중복 API 서비스 | ❌ 비활성화 대상 | 잠금 충돌 원인 |
-| `slowletter-ui` | 구 Streamlit 서비스 | 확인 필요 | |
-| `nginx` | 리버스 프록시 | ✅ 사용 중 | |
-
-⚠️ **주의**: `slowletter-api`와 `slownews-api`가 동일 Qdrant 폴더를 사용하므로 동시에 실행하면 잠금 충돌 발생. `slowletter-api`는 반드시 비활성화할 것.
-
-```bash
-sudo systemctl stop slowletter-api && sudo systemctl disable slowletter-api
-```
-
-### 배포 명령어
+### 즉시 배포 명령어
 
 ```bash
 cd ~/slowletter-pipeline && git push origin main && \
 ssh -i slowkey.pem ubuntu@15.165.13.179 \
   'cd ~/slowletter-pipeline && git pull origin main && \
-   sudo systemctl restart slownews-api && \
-   sudo systemctl restart slownews-app'
+   sudo systemctl restart slownews-api slownews-app'
 ```
 
-### 일일 업데이트
-- crontab: `45 0 * * *` → `ec2_daily_update.sh` 실행
+## 2. 이번 세션에서 한 작업 (커밋 3개, 모두 push 대기)
 
-## 3. 기술 스택
+### 2-1. 불렛 포맷 통일 + 검색 상한 해제 (`13874f5`)
 
-### 검색 엔진
-- **하이브리드 검색**: BM25 (키워드, 가중치 0.3) + 벡터 유사도 (시맨틱, 가중치 0.7)
-- **점수 통합**: RRF (Reciprocal Rank Fusion), K=60
-- **벡터 DB**: Qdrant (로컬 파일 모드, `/data/processed/qdrant`)
-- **BM25 인덱스**: `/data/processed/bm25_index.pkl`
-- **엔티티 DB**: SQLite, `/data/processed/entities.db`
+**agent/agent.py**
+- SYSTEM_PROMPT 규칙 3~4번: "소제목 아래 **모든** 내용 줄은 `• `로 시작, 불렛 없는 줄 금지, 각 불렛 새 줄에서 시작"
+- `_reformat_answer()` 프롬프트: 동일 규칙으로 통일
+- 예시에서 맥락 서술 문장에도 모두 `• ` 추가
 
-### AI 에이전트
-- **모델**: claude-sonnet-4-5-20250929 (temperature: 0.3, max_tokens: 4096)
-- **Tool Use**: semantic_search, entity_timeline, trend_analysis, source_search
-- **후처리**: `_reformat_answer()` — 1차 답변에 `###`/`•`가 없으면 2차 API 호출로 포맷 변환
+**search/hybrid_search.py**
+- `initial_k=30` 하드코딩 → `initial_k = max(top_k * 2, 60)` 자동 계산
+- top_k=50 요청 시 각 엔진에서 100건 후보 → 50건 이상 반환 가능
 
-### 프론트엔드
-- **Streamlit**: `st.markdown()`으로 답변 렌더링
-- **마크다운 처리**: `fix_answer_lines()` — 마침표 보정 + `~` → `\~` 이스케이프 (취소선 방지)
+### 2-2. 인라인 불렛 강제 줄바꿈 (`51a6f96`)
 
-## 4. 주요 파일
+**app.py** `fix_answer_lines()`
+- LLM이 `• `를 줄바꿈 없이 이어 붙이는 경우 대비
+- regex로 `• ` 앞, `### ` 앞에 줄바꿈 삽입
+
+### 2-3. 마크다운 줄바꿈 수정 (`5c3ca3a`) ← 최신
+
+**app.py** `fix_answer_lines()`
+- `\n` 하나로는 `st.markdown()`에서 줄바꿈 안 됨 (마크다운 규칙)
+- `\n\n`(빈 줄)으로 변경하여 실제 렌더링에서 줄바꿈 보장
+- 핵심 코드:
+  ```python
+  answer = re.sub(r'(?<!\n)(• )', r'\n\n\1', answer)      # 인라인 불렛 분리
+  answer = re.sub(r'(?<!\n)\n(• )', r'\n\n\1', answer)     # 단일 \n → \n\n
+  answer = re.sub(r'(?<!\n)(### )', r'\n\n\1', answer)     # 소제목 분리
+  ```
+
+## 3. 이전 세션 작업 (이미 배포 완료)
+
+- **공백 보존** (`d80b5e8`): `extract_li_content()`에서 `<span>` 태그 사이 공백 누락 수정
+- **nan 엔티티 필터** (`4dd7bb4`): `generate_web_csv.py`의 `_normalize_entities()` 진입점에서 nan 체크
+- **일일 업데이트 스크립트** (`0f7d352`): 서비스명 `slownews-api`/`slownews-app`으로 수정 + CDN 캐시 버스팅
+- **관련 기사 50건** (`4cb1ad6`): app.py `top_k=50`, `max_items=50`
+- **물결표 이스케이프** (`cfe8222`): `~` → `\~` 마크다운 취소선 방지
+- **답변 후처리** (`954aa76`): `_reformat_answer()` 2차 API 호출로 포맷 변환
+
+## 4. 인프라
+
+### EC2 서버
+- IP: `15.165.13.179`, SSH key: `slowkey.pem`
+- Python venv: `source ~/slowletter-pipeline/.venv/bin/activate`
+
+### Systemd 서비스
+| 서비스명 | 역할 | 상태 |
+|----------|------|------|
+| `slownews-api` | FastAPI (포트 8000) | ✅ 사용 중 |
+| `slownews-app` | Streamlit (포트 8510) | ✅ 사용 중 |
+| `slowletter-api` | 구 API (충돌 원인) | ❌ 비활성화 대상 |
+| `nginx` | 리버스 프록시 | ✅ 사용 중 |
+
+⚠️ `slowletter-api`와 `slownews-api`가 동일 Qdrant 폴더 사용 → 동시 실행 시 잠금 충돌
+
+### 경로
+- nginx 웹 루트: `/var/www/slownews/`
+- 웹 CSV: `/var/www/slownews/data/context/slowletter_web.csv`
+- 프로젝트: `~/slowletter-pipeline/`
+- 일일 크론: `45 0 * * *` → `ec2_daily_update.sh`
+
+## 5. 주요 파일
 
 | 파일 | 역할 |
 |------|------|
-| `agent/agent.py` | Claude RAG 에이전트 (SYSTEM_PROMPT, query, _reformat_answer) |
-| `agent/tools.py` | Tool 정의 및 실행기 |
-| `api/main.py` | FastAPI 엔드포인트 (/query, /search, /timeline, /trend) |
-| `app.py` | Streamlit 프론트엔드 (context 페이지) |
-| `search/hybrid_search.py` | 하이브리드 검색 엔진 (BM25 + 벡터 RRF) |
-| `indexing/embedder.py` | 벡터 임베딩 + Qdrant VectorStore |
-| `indexing/bm25_index.py` | BM25 인덱스 |
-| `indexing/entity_db.py` | 엔티티 DB (인물/조직/키워드) |
-| `entity_rules.json` | 엔티티 정규화 규칙 |
-| `generate_web_csv.py` | 웹용 CSV 생성 (엔티티 규칙 적용) |
-| `index.html` | 메인 페이지 (정적 HTML) |
-| `ec2_daily_update.sh` | 일일 데이터 업데이트 스크립트 |
+| `app.py` | Streamlit 프론트엔드 (`fix_answer_lines` 후처리) |
+| `agent/agent.py` | Claude RAG 에이전트 (SYSTEM_PROMPT, `_reformat_answer`) |
+| `search/hybrid_search.py` | RRF 하이브리드 검색 (BM25 + 벡터) |
+| `slowletter_pipeline.py` | 크롤러/파서 (`extract_li_content`) |
+| `generate_web_csv.py` | 웹용 CSV 생성 (`_normalize_entities`) |
+| `ec2_daily_update.sh` | 일일 데이터 업데이트 + CDN 캐시 버스팅 |
 
-## 5. 에이전트 출력 포맷
+## 6. 에이전트 출력 포맷
 
-### 목표: 악시오스/슬로우뉴스 스타일
-```
-도입 1~2문장 (소제목 없이)
+### 규칙 (SYSTEM_PROMPT + _reformat_answer 동일)
+1. 도입 1~2문장 (소제목 없이)
+2. `### ` 소제목 3~5개
+3. 소제목 아래 **모든 줄**은 `• `로 시작 (불렛 없는 줄 금지)
+4. 각 `• `는 새 줄에서 시작 (한 줄에 2개 금지)
+5. 마지막은 `### 왜 중요한가` 또는 `### 전망`
+6. 오직 `• `만 사용 (-, *, 1. 금지)
 
-### 키워드: 부연 설명
-• 핵심 팩트 1
-맥락 보충 서술 1~2문장.
-• 핵심 팩트 2
+### 핵심 교훈
+claude-sonnet-4-5는 멀티턴 도구 사용 중 포맷 지시를 잘 무시함. `_reformat_answer()` 후처리(2차 API 호출)가 가장 확실한 해법. 거기에 더해 `app.py`의 regex 후처리로 인라인 불렛도 강제 줄바꿈.
 
-### 왜 중요한가
-• 전망 불렛
-```
+## 7. 알려진 이슈 / 추후 작업
 
-### 구현 방식 (시행착오 기록)
-1. SYSTEM_PROMPT에 포맷 규칙 추가 → 모델이 무시
-2. SYSTEM_PROMPT 맨 끝에 예시와 함께 배치 → 무시
-3. 사용자 질문에 FORMAT_REMINDER 주입 → 무시
-4. tool_results에 포맷 리마인더 삽입 → 무시
-5. **`_reformat_answer()` 후처리** → ✅ 성공
+- [ ] **배포 후 불렛 줄바꿈 확인**: `5c3ca3a` 배포 후 실제 쿼리로 `\n\n` 줄바꿈 동작 확인
+- [ ] **관련성 개선**: "뉴 이재명" 검색 시 2024년 대선 이전 콘텐츠 혼입. 시간 감쇠(time decay) 검토
+- [ ] **`slowletter-api` 비활성화**: `sudo systemctl stop slowletter-api && sudo systemctl disable slowletter-api`
+- [ ] **`og-image_.png`**: git untracked. .gitignore 추가 또는 삭제
+- [ ] **`deploy_patch.sh`**: 임시 파일. 삭제 가능
 
-핵심 교훈: claude-sonnet-4-5는 "~하지 마라" 규칙은 잘 따르지만, "이 형식으로 써라" 같은 긍정 포맷 지시는 복잡한 멀티턴 도구 사용 중에 잘 무시한다. 후처리(2차 API 호출)가 가장 확실한 해법이다.
-
-### 인물 표기 규칙
-- 첫 등장 시: 이름(최신 직책) — 예: 이재명(대통령)
-- 이후: 이름만 — 예: 이재명
-
-## 6. 관련 기사 (텍스트.) 섹션
-
-- **검색**: `/search` 엔드포인트에 `top_k=50` 요청
-- **필터링**: `_select_evidence(refs, max_items=50)` — 최고 점수 대비 35% 미만 컷오프
-- **결과**: 관련도가 높으면 최대 50개, 낮으면 1~2개만 표시
-- **점수 기준**: `hybrid_score` (RRF 통합 점수) 우선, 없으면 BM25 `score`
-
-## 7. 엔티티 규칙 (entity_rules.json)
-
-- 정규화: `"공정위"` → `"공정거래위원회"`, `"공정위(공정거래위원회)"` → `"공정거래위원회"`
-- 제외 (빈 문자열): `"해마루 변호사"`, `"한국 증권사"`
-- `generate_web_csv.py`에서 `nan` 값 필터 적용
-
-## 8. 프론트엔드 주의사항
-
-- **물결표(~)**: `fix_answer_lines()`에서 `~` → `\~` 이스케이프 (마크다운 취소선 방지)
-- **OG 이미지**: `og-image.png?v=2` (캐시 버스팅)
-- **마크다운 렌더링**: `###`으로 시작하는 줄은 마침표 보정에서 제외
-
-## 9. 미완료/확인 필요 사항
-
-- [ ] `slowletter-api` 서비스 비활성화 (위 명령어 실행)
-- [ ] `slowletter-ui` 서비스 역할 확인 (slownews-app과 중복인지)
-- [ ] /context/ OG nginx 설정: 봇 요청을 context-og.html로 라우팅 (소셜 공유용)
-- [ ] `top_k=50` 변경사항 커밋 및 배포
-- [ ] `~` 이스케이프 + 디버그 로그 변경사항 배포 확인
-- [ ] 독립 Qdrant 서버 프로세스 (PID 248879, root) 용도 확인 — 필요 없으면 비활성화
-
-## 10. Git 최근 커밋 히스토리
+## 8. Git 최근 커밋
 
 ```
+5c3ca3a 불렛 줄바꿈: \n → \n\n (마크다운 렌더링 수정)     ← push 대기
+51a6f96 인라인 불렛·소제목 강제 줄바꿈 후처리 추가          ← push 대기
+13874f5 불렛 포맷 강화 + 검색 결과 상한 해제               ← push 대기
+0f7d352 일일 업데이트: 서비스명 수정 + CDN 캐시 버스팅 추가
+4dd7bb4 nan 엔티티 필터링: 값 자체가 nan인 경우도 제거
+d80b5e8 extract_li_content 공백 보존: span/strong 태그 사이 공백 누락 수정
+4cb1ad6 관련 기사 top_k 50 확대 + 소제목 마침표 추가 + 인수인계 메모
 cfe8222 물결표 이스케이프 + 후처리 포맷 디버깅 로그 추가
 954aa76 답변 후처리 포맷 변환 추가: _reformat_answer
-190909b tool_results에 출력 형식 리마인더 삽입
-e429ed8 사용자 질문에 출력 형식 리마인더 주입
-8fd9011 에이전트 출력 형식 규칙 이동 + 인물 표기 규칙
-fb5c3e9 에이전트 답변 구조 규칙 추가: Axios 스타일
-782ce6e entity_rules 추가: 공정위→공정거래위원회, nan 필터
-5cbd67d OG 이미지 캐시 버스팅: ?v=2
-5ce56a1 og-image.png 교체
-7f4eb19 에이전트 답변 구조 악시오스 스타일 소제목+불렛 추가
 ```
