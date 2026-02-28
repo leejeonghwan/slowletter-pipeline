@@ -132,8 +132,12 @@ class SlowLetterAgent:
                 "sources": list,        # 참조된 문서
             }
         """
+        FORMAT_REMINDER = (
+            "\n\n[출력 형식 필수] 답변을 작성할 때 반드시 '### 소제목'과 '• 불렛'을 사용하라. "
+            "소제목 3~5개, 각 소제목 아래 불렛 2~4개. 불렛 없는 문단 나열은 금지."
+        )
         messages = conversation_history or []
-        messages.append({"role": "user", "content": user_question})
+        messages.append({"role": "user", "content": user_question + FORMAT_REMINDER})
 
         tool_calls_log = []
         round_count = 0
