@@ -51,7 +51,7 @@ def _load_entity_rules(repo_dir: str) -> dict:
 
 def _normalize_entities(value, entity_type: str, rules: dict) -> str:
     """엔티티 정규화: 세미콜론 구분 문자열을 규칙에 따라 변환"""
-    if value is None or str(value).strip() == "":
+    if value is None or str(value).strip() == "" or str(value).strip().lower() == "nan":
         return ""
     
     entities = [e.strip() for e in str(value).split(";") if e.strip()]
