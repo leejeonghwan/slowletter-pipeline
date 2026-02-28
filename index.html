@@ -220,7 +220,7 @@ function renderDocPage(docId) {
       <div style="margin-bottom:1rem;">
         <a href="/" onclick="event.preventDefault();backToList()" style="font-size:0.85rem;color:#fdad00;text-decoration:none;">&larr; 목록으로.</a>
       </div>
-      <div class="article" style="padding:2rem;">
+      <div class="article">
         <div style="font-size:0.85rem;margin-bottom:0.5rem;"><button class="date-link" onclick="backToList();setTimeout(function(){filterDate('${doc.date}')},50)" style="color:#a8a29e;cursor:pointer;background:transparent;border:none;padding:0;font:inherit;font-size:0.85rem;">${doc.date}.</button></div>
         <h2 style="font-size:1.5rem;font-weight:700;color:#1c1917;margin-bottom:1.5rem;line-height:1.4;">${escapeHtml(doc.title)}</h2>
         <div style="font-size:0.95rem;line-height:1.8;color:#1c1917;">${formatted}</div>
