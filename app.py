@@ -341,8 +341,13 @@ with st.sidebar:
     mode = st.radio("Mode", ["맥락 분석.", "타임라인.", "트렌드."], index=0, label_visibility="collapsed")
 
     st.markdown("---")
-    st.markdown(f"<a href='/' style='display:block;padding:0.4rem 0;font-size:0.85rem;'>슬로우레터 빠른 검색.</a>", unsafe_allow_html=True)
-    st.markdown(f"<a href='/context/' style='display:block;padding:0.4rem 0;font-size:0.85rem;font-weight:600;'>컨텍스트 분석(후원회원 전용).</a>", unsafe_allow_html=True)
+    st.markdown(
+        """<div style="margin-top:0.5rem;">
+<a href="/" style="display:block;padding:0.5rem 0.75rem;margin-bottom:0.35rem;background:#111111;border-radius:6px;color:#fdad00 !important;font-size:0.85rem;text-decoration:none;">슬로우레터 빠른 검색.</a>
+<a href="/context/" style="display:block;padding:0.5rem 0.75rem;background:#111111;border-radius:6px;color:#fdad00 !important;font-size:0.85rem;font-weight:600;text-decoration:none;">컨텍스트 분석(후원회원 전용).</a>
+</div>""",
+        unsafe_allow_html=True,
+    )
 
 
 # ===== 채팅 모드 =====
