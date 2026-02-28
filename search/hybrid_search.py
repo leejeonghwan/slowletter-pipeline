@@ -20,7 +20,7 @@ class HybridSearchEngine:
         self,
         query: str,
         top_k: int = 10,
-        initial_k: int = 30,
+        initial_k: int = 0,
         date_start: Optional[str] = None,
         date_end: Optional[str] = None,
         entity_filter: Optional[str] = None,
@@ -34,6 +34,10 @@ class HybridSearchEngine:
         RRF_score = sum(1 / (k + rank_i)) for each ranking system
         """
         RRF_K = 60  # RRF 상수
+
+        # initial_k: 각 검색 엔진에서 가져올 후보 수 (top_k보다 충분히 커야 함)
+        if initial_k <= 0:
+            initial_k = max(top_k * 2, 60)
 
         # 1. BM25 검색
         bm25_results = self.bm25.search(
