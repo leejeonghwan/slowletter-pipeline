@@ -201,6 +201,17 @@ class SlowLetterAgent:
                             "content": result,
                         })
 
+                # 도구 결과와 함께 출력 형식 리마인더 삽입
+                tool_results.append({
+                    "type": "text",
+                    "text": (
+                        "[출력 형식 리마인더] 최종 답변 작성 시 반드시 아래 형식을 따를 것:\n"
+                        "1) 도입 1~2문장\n"
+                        "2) ### 소제목 3~5개, 각 소제목 아래 • 불렛 2~4개 필수\n"
+                        "3) ### 왜 중요한가 로 마무리\n"
+                        "불렛 없는 문단 나열은 절대 금지."
+                    ),
+                })
                 messages.append({"role": "user", "content": tool_results})
 
             else:
