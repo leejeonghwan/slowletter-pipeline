@@ -132,12 +132,8 @@ class SlowLetterAgent:
                 "sources": list,        # 참조된 문서
             }
         """
-        FORMAT_REMINDER = (
-            "\n\n[출력 형식 필수] 답변을 작성할 때 반드시 '### 소제목'과 '• 불렛'을 사용하라. "
-            "소제목 3~5개, 각 소제목 아래 불렛 2~4개. 불렛 없는 문단 나열은 금지."
-        )
         messages = conversation_history or []
-        messages.append({"role": "user", "content": user_question + FORMAT_REMINDER})
+        messages.append({"role": "user", "content": user_question})
 
         tool_calls_log = []
         round_count = 0
@@ -167,6 +163,10 @@ class SlowLetterAgent:
                 for block in assistant_content:
                     if hasattr(block, "text"):
                         answer_text += block.text
+
+                # 소제목/불렛이 없으면 후처리로 포맷 변환
+                if "### " not in answer_text or "• " not in answer_text:
+                    answer_text = self._reformat_answer(answer_text)
 
                 return {
                     "answer": answer_text,
@@ -201,17 +201,6 @@ class SlowLetterAgent:
                             "content": result,
                         })
 
-                # 도구 결과와 함께 출력 형식 리마인더 삽입
-                tool_results.append({
-                    "type": "text",
-                    "text": (
-                        "[출력 형식 리마인더] 최종 답변 작성 시 반드시 아래 형식을 따를 것:\n"
-                        "1) 도입 1~2문장\n"
-                        "2) ### 소제목 3~5개, 각 소제목 아래 • 불렛 2~4개 필수\n"
-                        "3) ### 왜 중요한가 로 마무리\n"
-                        "불렛 없는 문단 나열은 절대 금지."
-                    ),
-                })
                 messages.append({"role": "user", "content": tool_results})
 
             else:
@@ -229,6 +218,42 @@ class SlowLetterAgent:
             "rounds": round_count,
             "sources": self.tool_executor.last_sources,
         }
+
+    def _reformat_answer(self, raw_text: str) -> str:
+        """답변을 소제목(###) + 불렛(•) 형식으로 후처리 변환한다."""
+        REFORMAT_PROMPT = """아래 텍스트를 다음 형식으로 재구성하라. 내용은 그대로 유지하되 구조만 바꾼다.
+
+형식 규칙:
+- 첫 1~2문장은 소제목 없이 도입 요약으로 쓴다.
+- 본문은 "### 키워드: 부연" 소제목 3~5개로 나눈다.
+- 각 소제목 아래 핵심 팩트를 "• "로 시작하는 불렛 2~4개로 정리한다.
+- 불렛 사이에 맥락 서술 1~2문장을 넣는다.
+- 마지막은 "### 왜 중요한가" 또는 "### 전망"으로 마무리한다.
+- 평서형 종결어미(~했다, ~이다)만 사용한다. 경어체 금지.
+- 마침표(.)로 문장을 끝낸다. 소제목에는 마침표 없음.
+- 굵은 글씨(**) 금지. 불렛은 오직 "• "만 사용.
+- 내용을 추가하거나 삭제하지 않는다. 구조만 변환한다.
+
+변환할 텍스트:
+"""
+        try:
+            resp = self.client.messages.create(
+                model=self.model,
+                max_tokens=self.max_tokens,
+                messages=[{"role": "user", "content": REFORMAT_PROMPT + raw_text}],
+                temperature=0.2,
+            )
+            reformatted = ""
+            for block in resp.content:
+                if hasattr(block, "text"):
+                    reformatted += block.text
+            # 변환 실패 시 원본 반환
+            if "### " in reformatted and "• " in reformatted:
+                return reformatted
+            return raw_text
+        except Exception as e:
+            print(f"  [Reformat] 후처리 실패: {e}")
+            return raw_text
 
     def stream_query(self, user_question: str):
         """
