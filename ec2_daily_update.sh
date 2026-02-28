@@ -55,8 +55,13 @@ python build_all.py data/raw/slowletter_solar_entities.csv
 # --- nginx 정적 파일 갱신 + 서비스 재시작 ---
 echo "[7/7] nginx 갱신 + 서비스 재시작"
 sudo cp index.html /var/www/slownews/index.html
-sudo cp -r data/raw/slowletter_web.csv /var/www/slownews/data/context/slowletter_web.csv 2>/dev/null || true
-sudo systemctl restart slowletter-api slowletter-ui
+sudo cp data/raw/slowletter_web.csv /var/www/slownews/data/context/slowletter_web.csv 2>/dev/null || true
+
+# CDN 캐시 버스팅: CSV URL에 타임스탬프 추가
+CACHE_TS=$(date +%s)
+sudo sed -i "s|slowletter_web\.csv[^'\"]*|slowletter_web.csv?v=${CACHE_TS}|g" /var/www/slownews/index.html
+
+sudo systemctl restart slownews-api slownews-app
 
 sleep 3
 
