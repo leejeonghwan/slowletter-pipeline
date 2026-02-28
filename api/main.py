@@ -316,7 +316,7 @@ def finder_page(request: Request):
 
     if keyword:
         from urllib.parse import quote
-        og_title = f"슬로우레터 빠른 검색: {keyword}."
+        og_title = f"슬로우레터: {keyword}."
         og_desc = f"'{keyword}' 관련 슬로우레터 검색 결과."
         og_url = f"https://slownews.net/?keyword={quote(keyword)}"
         # OG title

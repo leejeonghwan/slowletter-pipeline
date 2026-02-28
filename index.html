@@ -301,7 +301,7 @@ function loadData(retryCount) {
         renderDocPage(docParam);
       } else if (keywordParam) {
         document.getElementById('searchInput').value = keywordParam;
-        document.title = '슬로우레터 빠른 검색: ' + keywordParam + '.';
+        document.title = '슬로우레터: ' + keywordParam + '.';
         applyFilters();
       } else if (dateParam) {
         selectedDate = dateParam;
@@ -539,7 +539,7 @@ function updateUrl() {
   if (sort !== 'newest') params.set('sort', sort);
   const qs = params.toString();
   history.replaceState(null, '', qs ? '/?' + qs : '/');
-  document.title = q ? '슬로우레터 빠른 검색: ' + q + '.' : DEFAULT_TITLE;
+  document.title = q ? '슬로우레터: ' + q + '.' : DEFAULT_TITLE;
 }
 
 // Event listeners
