@@ -110,9 +110,9 @@ def main():
     entities_df.to_csv(OUTPUT_CSV, index=False)
     print(f"💾 저장: {OUTPUT_CSV}")
 
-    # 샘플 확인
+    # 샘플 확인 (날짜 기준 최신 3건)
     print("\n--- 샘플 (최신 3건) ---")
-    sample = entities_df.head(3)
+    sample = entities_df.sort_values("date", ascending=False).head(3)
     for _, row in sample.iterrows():
         print(f"\n[{row['ID']}] {row['title']}")
         content = row['cleaned_content_for_service']

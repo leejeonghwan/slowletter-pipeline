@@ -420,18 +420,24 @@ class SolarEntityExtractor:
         self.total_tokens = 0
         self.errors = 0
 
-    def test_connection(self) -> bool:
+    def test_connection(self, retries: int = 3, backoff: float = 5.0) -> bool:
         payload = {
             "model": SOLAR_MODEL,
             "messages": [{"role": "user", "content": "안녕"}],
             "max_tokens": 8,
         }
-        try:
-            self.qps.acquire()
-            r = self.session.post(self.endpoint, json=payload, timeout=10)
-            return r.status_code == 200
-        except Exception:
-            return False
+        for attempt in range(1, retries + 1):
+            try:
+                self.qps.acquire()
+                r = self.session.post(self.endpoint, json=payload, timeout=10)
+                if r.status_code == 200:
+                    return True
+                logging.warning(f"Solar API 연결 시도 {attempt}/{retries} 실패 (status={r.status_code})")
+            except Exception as e:
+                logging.warning(f"Solar API 연결 시도 {attempt}/{retries} 예외: {e}")
+            if attempt < retries:
+                time.sleep(backoff * attempt)
+        return False
 
     @staticmethod
     def _parse_json(content: str) -> Optional[Dict[str, List[str]]]:
@@ -529,8 +535,8 @@ def load_existing_entities(path: str) -> pd.DataFrame:
     return df
 
 
-def step2_entities(archive_df: pd.DataFrame, log) -> pd.DataFrame:
-    """Step 2: 엔티티 추출."""
+def step2_entities(archive_df: pd.DataFrame, log, rebuild: bool = False) -> pd.DataFrame:
+    """Step 2: 엔티티 추출. rebuild=True이면 기존 결과 무시하고 전체 재추출."""
     log.info("=" * 50)
     log.info("STEP 2: 엔티티 추출 시작")
     log.info("=" * 50)
@@ -557,11 +563,16 @@ def step2_entities(archive_df: pd.DataFrame, log) -> pd.DataFrame:
     archive_df["cleaned_content_for_service"] = archive_df[content_col].apply(clean_html_for_service)
 
     # 기존 엔티티 결과 로드 → 증분 식별
-    existing_df = load_existing_entities(ENTITIES_CSV)
-    if existing_df.empty:
+    if rebuild:
+        log.info("엔티티 전체 재추출 모드 (--rebuild-entity)")
+        existing_df = pd.DataFrame()
+        to_process = archive_df.copy()
+    else:
+        existing_df = load_existing_entities(ENTITIES_CSV)
+    if not rebuild and existing_df.empty:
         to_process = archive_df.copy()
         log.info("기존 엔티티 결과 없음 → 전체 처리")
-    else:
+    elif not rebuild:
         existing_ids = set(existing_df["ID"].unique())
         archive_ids = set(archive_df["ID"].unique())
         new_ids = archive_ids - existing_ids
@@ -667,6 +678,10 @@ def main():
         "--skip-entity", action="store_true",
         help="엔티티 추출 건너뛰기 (크롤링만 실행)",
     )
+    parser.add_argument(
+        "--rebuild-entity", action="store_true",
+        help="엔티티 전체 재추출 (기존 결과 무시, --skip-crawl과 함께 사용 권장)",
+    )
     args = parser.parse_args()
 
     log = setup_logging()
@@ -692,7 +707,7 @@ def main():
     if args.skip_entity:
         log.info("엔티티 추출 건너뛰기 (--skip-entity)")
     else:
-        step2_entities(archive_df, log)
+        step2_entities(archive_df, log, rebuild=args.rebuild_entity)
 
     elapsed = int(time.time() - start_time)
     log.info(f"✅ 파이프라인 완료 (소요: {elapsed}초)")

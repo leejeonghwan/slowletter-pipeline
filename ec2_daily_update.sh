@@ -2,8 +2,8 @@
 # ec2_daily_update.sh — EC2 통합 파이프라인
 # 크롤링 + 엔티티 추출 + CSV 생성 + 인덱스 빌드 + nginx 갱신 + 서비스 재시작
 #
-# crontab: 45 0 * * * /home/ubuntu/slowletter-pipeline/ec2_daily_update.sh
-#          (UTC 00:45 = KST 09:45)
+# crontab: 15 23 * * * /home/ubuntu/slowletter-pipeline/ec2_daily_update.sh
+#          (UTC 23:15 = KST 08:15)
 
 set -euo pipefail
 
