@@ -217,7 +217,19 @@ def fetch_posts(category_id: int, since_date, mode: str, log) -> list:
         if after_param:
             params["after"] = after_param
 
-        res = requests.get(WP_BASE_URL, params=params, timeout=30)
+        # 최대 3회 재시도 (타임아웃/네트워크 오류 대비)
+        for attempt in range(1, 4):
+            try:
+                res = requests.get(WP_BASE_URL, params=params, timeout=30)
+                break
+            except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectionError) as e:
+                if attempt < 3:
+                    wait = attempt * 10  # 10초, 20초 대기
+                    log.warning(f"  요청 실패 (시도 {attempt}/3): {e} → {wait}초 후 재시도")
+                    time.sleep(wait)
+                else:
+                    log.error(f"  요청 3회 실패, 크롤링 중단: {e}")
+                    raise
         data = res.json()
 
         if isinstance(data, dict):

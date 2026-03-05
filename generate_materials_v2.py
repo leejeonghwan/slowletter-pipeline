@@ -51,6 +51,12 @@ SPEAKER_STOPWORDS = {
     '따라서', '결국', '이미', '그동안', '이번', '올해', '지난해', '최근',
     '면서', '이라고', '라며', '라고', '밝혔다', '말했다', '지적했다',
     '때문에', '뿐만', '아니라', '가운데', '이날', '당시', '앞서',
+    # 익명 출처 (이름이 아닌 일반명사)
+    '관계자', '당국자', '소식통', '측근', '핵심', '인사', '수석',
+    '대표', '해수부', '국방부', '외교부', '교육부', '환경부',
+    '업계', '지도부', '추진위', '기획단', '사무국', '공간',
+    # 동사구/조사 오파싱
+    '비판하자', '대해서', '대해', '관련해', '따르면', '통해서',
 }
 
 
@@ -122,6 +128,16 @@ def is_valid_speaker(speaker):
     if not speaker or len(speaker) < 2:
         return False
     if speaker in SPEAKER_STOPWORDS:
+        return False
+    # 복합 익명 출처 필터: "~관계자", "~당국자", "~소식통", "~측근", "~인사" 등
+    # 예: "업계 관계자", "해수부 관계자", "지도부 핵심 관계자", "당 수석"
+    ANON_SUFFIXES = ('관계자', '당국자', '소식통', '측근', '핵심', '인사', '수석',
+                     '대변인', '고위급', '고위 관계자')
+    for suffix in ANON_SUFFIXES:
+        if speaker.endswith(suffix) and speaker != suffix:
+            return False
+    # "A부 B" 패턴 (정부부처 + 직급) — 이름이 아닌 익명 출처
+    if re.match(r'^[가-힣]+부\s+[가-힣]+$', speaker) and len(speaker) <= 8:
         return False
     # 한글만 포함 (너무 짧은 일반어 필터)
     if len(speaker) == 2 and not re.match(r'^[가-힣]{2}$', speaker):
@@ -258,13 +274,16 @@ def analyze_cluster(cluster):
         for f in facts:
             all_facts.append({'text': f, 'paper': press, 'url': url})
 
-        # 신문별 요약
+        # 신문별 요약 (캡션 필터 적용)
         if press not in paper_summaries:
             summary = art.get('summary_2sent', '')
             if summary:
-                first_sent = re.split(r'[.。]\s*', summary)[0].strip()
-                if first_sent and len(first_sent) > 10:
-                    paper_summaries[press] = first_sent
+                sents = re.split(r'[.。]\s*', summary)
+                for sent in sents:
+                    sent = sent.strip()
+                    if sent and len(sent) > 10 and not is_caption(sent):
+                        paper_summaries[press] = sent
+                        break
 
         # 기사 링크 수집
         if url and 'nan' not in url.lower():
@@ -289,14 +308,20 @@ def analyze_cluster(cluster):
     # 대표 인용 (발언자 확인된 것만)
     best_quote = unique_quotes[0] if unique_quotes else None
 
+    # 중요 코멘트 vs 발언/인용 중복 방지
+    # comments는 상위 3개, quotes는 comments에 없는 것만 별도 최대 5개
+    comments = unique_quotes[:3]
+    comment_keys = set(q['quote'][:30] for q in comments)
+    remaining_quotes = [q for q in unique_quotes if q['quote'][:30] not in comment_keys]
+
     return {
         'title': clean_title(cluster['title']),
         'papers': papers,
         'summary': summary,
-        'comments': unique_quotes[:3],
+        'comments': comments,
         'best_quote': best_quote,
         'facts': unique_facts[:5],
-        'quotes': unique_quotes[:5],
+        'quotes': remaining_quotes[:5],
         'temperature': temperature,
         'per_paper': per_paper,
         'context_keywords': context,
@@ -325,16 +350,45 @@ def clean_title(title):
     return title
 
 
+def is_caption(text):
+    """사진 캡션인지 판별.
+
+    캡션 특징: ~하고 있다, ~모습, 촬영, 제공, 기자, 기념 촬영 등.
+    """
+    if not text:
+        return True
+    text = text.strip()
+    # 직접적 캡션 키워드
+    if re.search(r'(사진[=:]|촬영[=:]|제공[=:]|뉴시스|연합뉴스|뉴스1|AP통신|로이터)', text):
+        return True
+    # "~하고 있다" / "~모습" 패턴 (사진 설명)
+    # 단, 인용부호("") 안의 내용은 발언이므로 제외
+    text_no_quotes = re.sub(r'["\u201C\u201D][^"\u201C\u201D]*["\u201C\u201D]', '', text)
+    if re.search(r'(하고\s*있다|하는\s*모습|모습이다|바라보고\s*있다|촬영하고|기념\s*촬영|자리를\s*함께)', text_no_quotes):
+        return True
+    # "OOO 기자" 로만 구성된 짧은 문장 (기사 바이라인)
+    if re.match(r'^[가-힣]{2,4}\s*기자$', text):
+        return True
+    # 너무 짧은 문장 (캡션일 가능성 높음)
+    if len(text) < 12:
+        return True
+    return False
+
+
 def build_summary(articles):
-    """핵심 요약: 첫 기사의 summary_2sent 기반."""
-    summary = articles[0].get('summary_2sent', '')
-    if not summary:
-        return ''
-    sents = re.split(r'[.。]\s*', summary)
-    summary = '. '.join(s.strip() for s in sents[:2] if s.strip())
-    if summary and not summary.endswith('.'):
-        summary += '.'
-    return summary
+    """핵심 요약: 첫 기사의 summary_2sent 기반. 캡션 필터 적용."""
+    for art in articles:
+        summary = art.get('summary_2sent', '')
+        if not summary:
+            continue
+        sents = re.split(r'[.。]\s*', summary)
+        good_sents = [s.strip() for s in sents if s.strip() and not is_caption(s.strip())]
+        if good_sents:
+            result = '. '.join(good_sents[:2])
+            if result and not result.endswith('.'):
+                result += '.'
+            return result
+    return ''
 
 
 def build_temperature(articles, papers):
@@ -749,6 +803,38 @@ def quality_check(html_text):
     empty_sections = len(re.findall(r'<h4>[^<]+</h4>\s*<h4>', html_text))
     if empty_sections > 0:
         issues.append(f'⚠️ 빈 섹션 {empty_sections}개')
+
+    # 5. 중요 코멘트 ↔ 발언/인용 중복 체크 (클러스터 단위)
+    import re as _re
+    sections = _re.split(r'<div class="section">', html_text)
+    dup_count = 0
+    for sec in sections:
+        comments = _re.findall(r'<h4>중요 코멘트</h4>(.*?)</ul>', sec, _re.DOTALL)
+        quotes = _re.findall(r'<h4>발언/인용</h4>(.*?)</ul>', sec, _re.DOTALL)
+        if comments and quotes:
+            # <li> 안의 인용문만 추출 (URL 제외)
+            c_texts = set(_re.findall(r'<li>\s*"([^"]{10,40})', comments[0]))
+            q_texts = set(_re.findall(r'<li>\s*"([^"]{10,40})', quotes[0]))
+            dup_count += len(c_texts & q_texts)
+    if dup_count > 0:
+        issues.append(f'⚠️ 중요 코멘트↔발언/인용 중복 {dup_count}건')
+    else:
+        issues.append('✅ 중요 코멘트↔발언/인용 중복 0건')
+
+    # 6. 사진 캡션 혼입 체크 ([핵심] 요약 + 신문별 한줄에서만 확인)
+    caption_in_content = 0
+    # [핵심] 요약 텍스트 추출
+    summaries = _re.findall(r'\[핵심\]\s*</strong>\s*(.+?)</p>', html_text)
+    # 신문별 한줄 텍스트 추출
+    per_papers = _re.findall(r'<li><strong>[^<]+:</strong>\s*(.+?)</li>', html_text)
+    for text in summaries + per_papers:
+        for pat in ['하고 있다', '하는 모습', '모습이다', '기념 촬영', '촬영=', '사진=']:
+            if pat in text:
+                caption_in_content += 1
+    if caption_in_content > 0:
+        issues.append(f'⚠️ [핵심]/신문별 캡션 혼입 {caption_in_content}건')
+    else:
+        issues.append('✅ 캡션 혼입 0건')
 
     return issues
 
