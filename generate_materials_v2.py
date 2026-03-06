@@ -459,7 +459,7 @@ body {
     padding: 0 20px;
     line-height: 1.7;
     color: #222;
-    background: #fdfdfd;
+    background: #fdad00;
 }
 h2 {
     font-size: 20px;
