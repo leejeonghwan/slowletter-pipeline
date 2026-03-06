@@ -585,6 +585,17 @@ def step2_entities(archive_df: pd.DataFrame, log, rebuild: bool = False) -> pd.D
         to_process = archive_df.copy()
         log.info("기존 엔티티 결과 없음 → 전체 처리")
     elif not rebuild:
+        # ── 최근 2일분 삭제 → 재추출 (당일 수정 반영) ──
+        from datetime import timedelta
+        cutoff = (datetime.now() - timedelta(days=2)).strftime("%Y-%m-%d")
+        existing_df["_date_str"] = pd.to_datetime(existing_df["date"], errors="coerce").dt.strftime("%Y-%m-%d")
+        refresh_mask = existing_df["_date_str"] >= cutoff
+        refresh_count = refresh_mask.sum()
+        if refresh_count > 0:
+            log.info(f"최근 2일분 갱신: {refresh_count}건 삭제 → 재추출 예정 (cutoff: {cutoff})")
+            existing_df = existing_df[~refresh_mask].copy()
+        existing_df.drop(columns=["_date_str"], inplace=True, errors="ignore")
+
         existing_ids = set(existing_df["ID"].unique())
         archive_ids = set(archive_df["ID"].unique())
         new_ids = archive_ids - existing_ids
@@ -601,7 +612,6 @@ def step2_entities(archive_df: pd.DataFrame, log, rebuild: bool = False) -> pd.D
                     changed_ids.add(aid)
         if changed_ids:
             log.info(f"제목 변경 감지: {len(changed_ids)}건 → 재추출 대상")
-            # 변경된 ID의 기존 엔티티 제거 (새로 추출한 것으로 대체)
             existing_df = existing_df[~existing_df["ID"].isin(changed_ids)].copy()
 
         # ── 고아 ID 제거: 아카이브에 없는 기존 엔티티 ──

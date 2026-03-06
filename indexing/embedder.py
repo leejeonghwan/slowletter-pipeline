@@ -180,6 +180,44 @@ class VectorStore:
 
         print(f"Upserted {len(doc_ids)} documents to vector store")
 
+    def delete_recent_points(self, days: int = 2) -> int:
+        """최근 N일분 벡터를 삭제합니다 (재임베딩용)."""
+        from datetime import datetime, timedelta
+        from qdrant_client.models import Filter, FieldCondition, Range
+
+        if not self.collection_exists():
+            return 0
+
+        cutoff = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
+
+        # date 필드가 "YYYY-MM-DD" 문자열이므로 >= cutoff 로 필터
+        # Qdrant keyword 필터는 Range를 지원하지 않으므로 scroll + delete로 처리
+        to_delete = []
+        next_offset = None
+        while True:
+            points, next_offset = self.client.scroll(
+                collection_name=self.COLLECTION_NAME,
+                limit=1000,
+                offset=next_offset,
+                with_payload=["date", "doc_id"],
+                with_vectors=False,
+            )
+            for p in points:
+                payload = p.payload or {}
+                date_val = str(payload.get("date", ""))[:10]
+                if date_val >= cutoff:
+                    to_delete.append(p.id)
+            if next_offset is None:
+                break
+
+        if to_delete:
+            self.client.delete(
+                collection_name=self.COLLECTION_NAME,
+                points_selector=to_delete,
+            )
+        print(f"Deleted {len(to_delete)} recent vectors (>= {cutoff})")
+        return len(to_delete)
+
     def get_existing_hashes(self, limit: int = 2000) -> dict:
         """현재 컬렉션에 들어있는 문서들의 content_hash를 가져옵니다."""
         existing: dict[str, str] = {}
@@ -284,6 +322,8 @@ def build_index(
 
     existing_hashes = {}
     if incremental and not recreate:
+        # 최근 2일분 벡터 삭제 → 재임베딩 (당일 수정 반영)
+        store.delete_recent_points(days=2)
         print("Loading existing vector index (hashes)...")
         existing_hashes = store.get_existing_hashes()
         print(f"Existing points: {len(existing_hashes)}")
