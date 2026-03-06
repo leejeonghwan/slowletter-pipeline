@@ -256,12 +256,31 @@ function renderDocPage(docId) {
     </div>`;
 }
 
-function loadData(retryCount) {
-  retryCount = retryCount || 0;
-  const csvPath = 'data/context/slowletter_web.csv';
-  let rowCount = 0;
+function rowToItem(row) {
+  const item = {
+    id: row.id || '',
+    date: row.date || '',
+    title: row.title || '',
+    content: row.content || '',
+    persons: parseEntities(row.persons),
+    orgs: parseEntities(row.orgs),
+  };
+  item._search = (item.title + ' ' + item.content + ' ' +
+    item.persons.join(' ') + ' ' + item.orgs.join(' ')).toLowerCase();
+  return item;
+}
 
-  Papa.parse(csvPath, {
+function isMainEntry() {
+  const p = new URLSearchParams(window.location.search);
+  return !p.get('keyword') && !p.get('date') && !p.get('doc');
+}
+
+function loadFullCsv(retryCount) {
+  retryCount = retryCount || 0;
+  let rowCount = 0;
+  const tempData = [];
+
+  Papa.parse('data/context/slowletter_web.csv', {
     download: true,
     header: true,
     skipEmptyLines: true,
@@ -269,24 +288,19 @@ function loadData(retryCount) {
     chunk: function(results) {
       for (const row of results.data) {
         if (!row.title || !row.date) continue;
-        const item = {
-          id: row.id || '',
-          date: row.date || '',
-          title: row.title || '',
-          content: row.content || '',
-          persons: parseEntities(row.persons),
-          orgs: parseEntities(row.orgs),
-        };
-        item._search = (item.title + ' ' + item.content + ' ' +
-          item.persons.join(' ') + ' ' + item.orgs.join(' ')).toLowerCase();
-        allData.push(item);
+        tempData.push(rowToItem(row));
       }
       rowCount += results.data.length;
       const pct = Math.min(95, Math.round(rowCount / 180));
-      document.getElementById('progressFill').style.width = pct + '%';
+      const bar = document.getElementById('progressFill');
+      if (bar) bar.style.width = pct + '%';
     },
     complete: function() {
-      document.getElementById('progressFill').style.width = '100%';
+      const bar = document.getElementById('progressFill');
+      if (bar) bar.style.width = '100%';
+
+      // 풀 데이터로 교체
+      allData = tempData;
       allData.sort((a, b) => b.date.localeCompare(a.date));
       updateSidebarStats();
 
@@ -297,6 +311,7 @@ function loadData(retryCount) {
       const keywordParam = urlParams.get('keyword');
       const sortParam = urlParams.get('sort');
       if (sortParam) document.getElementById('sortSelect').value = sortParam;
+
       if (docParam) {
         renderDocPage(docParam);
       } else if (keywordParam) {
@@ -308,25 +323,50 @@ function loadData(retryCount) {
         document.getElementById('searchInput').placeholder = dateParam + ' 기사.';
         applyFilters();
       } else {
+        // 메인 진입: 이미 recent로 렌더링됨, 조용히 갱신
         applyFilters();
       }
       document.getElementById('loading').style.display = 'none';
     },
     error: function(err) {
       if (retryCount < 2) {
-        allData = [];
-        document.getElementById('loading').innerHTML =
-          '<div class="loading"><div class="loading-spinner"></div><div class="loading-text">재시도 중... (' + (retryCount + 1) + '/2)</div><div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div></div>';
-        setTimeout(function() { loadData(retryCount + 1); }, 1500);
+        setTimeout(function() { loadFullCsv(retryCount + 1); }, 1500);
       } else {
-        document.getElementById('loading').innerHTML =
-          '<div style="color:#dc2626;text-align:left;padding:2rem 0;">' +
-          'CSV 파일을 불러올 수 없습니다.<br>' +
-          '<small style="color:#a8a29e">네트워크 연결을 확인하고 페이지를 새로고침 해주세요.</small>' +
-          '<br><button onclick="location.reload()" style="margin-top:1rem;padding:0.4rem 1rem;border:1px solid #e7e5e4;border-radius:6px;background:#fff;cursor:pointer;font-size:0.85rem;">새로고침</button></div>';
+        // recent로 이미 화면은 보이므로, 메인이면 에러를 크게 안 보여줘도 됨
+        if (!isMainEntry()) {
+          document.getElementById('loading').innerHTML =
+            '<div style="color:#dc2626;text-align:left;padding:2rem 0;">' +
+            'CSV 파일을 불러올 수 없습니다.<br>' +
+            '<small style="color:#a8a29e">네트워크 연결을 확인하고 페이지를 새로고침 해주세요.</small>' +
+            '<br><button onclick="location.reload()" style="margin-top:1rem;padding:0.4rem 1rem;border:1px solid #e7e5e4;border-radius:6px;background:#fff;cursor:pointer;font-size:0.85rem;">새로고침</button></div>';
+        }
       }
     }
   });
+}
+
+function loadData() {
+  if (isMainEntry()) {
+    // 메인 진입: recent.json 먼저 로딩 → 즉시 렌더링 → 백그라운드 풀 CSV
+    fetch('data/context/recent.json')
+      .then(res => res.json())
+      .then(data => {
+        allData = data.map(rowToItem);
+        allData.sort((a, b) => b.date.localeCompare(a.date));
+        updateSidebarStats();
+        applyFilters();
+        document.getElementById('loading').style.display = 'none';
+        // 백그라운드로 풀 CSV 로딩
+        loadFullCsv();
+      })
+      .catch(() => {
+        // recent.json 실패 시 풀 CSV로 폴백
+        loadFullCsv();
+      });
+  } else {
+    // 키워드/날짜/문서 진입: 풀 CSV 필요
+    loadFullCsv();
+  }
 }
 
 function updateSidebarStats() {

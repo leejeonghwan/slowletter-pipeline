@@ -45,17 +45,27 @@ echo "[4/7] 불렛/링크 복원 (update_service_content)"
 python update_service_content.py
 
 # --- 웹 CSV 재생성 ---
-echo "[5/7] 웹 CSV 재생성"
+echo "[5/8] 웹 CSV 재생성"
 python generate_web_csv.py
 
+# --- recent.json 생성 (메인 즉시 렌더링용) ---
+echo "[6/8] recent.json 생성"
+python generate_recent_json.py
+
 # --- 인덱스 빌드 ---
-echo "[6/7] 인덱스 증분 갱신"
-python build_all.py data/raw/slowletter_solar_entities.csv
+#echo "[7/8] 인덱스 증분 갱신"
+#python build_all.py data/raw/slowletter_solar_entities.csv
+echo "[7/8] 인덱스 갱신"
+if ! python build_all.py data/raw/slowletter_solar_entities.csv; then
+  echo "[ERROR] 인덱스 빌드 실패, 기존 인덱스로 계속 진행"
+fi
+
 
 # --- nginx 정적 파일 갱신 + 서비스 재시작 ---
-echo "[7/7] nginx 갱신 + 서비스 재시작"
+echo "[8/8] nginx 갱신 + 서비스 재시작"
 sudo cp index.html /var/www/slownews/index.html
 sudo cp data/raw/slowletter_web.csv /var/www/slownews/data/context/slowletter_web.csv 2>/dev/null || true
+sudo cp data/context/recent.json /var/www/slownews/data/context/recent.json 2>/dev/null || true
 
 # CDN 캐시 버스팅: CSV URL에 타임스탬프 추가
 CACHE_TS=$(date +%s)
@@ -78,7 +88,7 @@ curl -s --max-time 8 http://127.0.0.1:8000/health || true
 
 # --- 데이터 백업 (git push) ---
 echo "[backup] git commit + push"
-git add data/raw/slowletter_solar_entities.csv data/raw/slowletter_web.csv data/slowletter_data_archives.csv data/slowletter_entities.csv
+git add data/raw/slowletter_solar_entities.csv data/raw/slowletter_web.csv data/context/recent.json data/slowletter_data_archives.csv data/slowletter_entities.csv
 if git diff --cached --quiet; then
   echo "[backup] 변경사항 없음, push 건너뜀"
 else
