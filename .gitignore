@@ -12,8 +12,31 @@ logs/
 # 백업 파일
 *.bak
 *.backup
+*.backup2
 *_patched.py
 /tmp/
+tmp_*/
+
+# 작업 결과물
+newspaper_clusters_materials_*.html
+newspaper_clusters_materials_*.md
+slowletter_coverage_analysis_*.md
+
+# CSV 데이터
+*.csv
+
+# 개인 정보
+memory/
+USER.md
+
+# 임시 폴더
+tmp_pdf/
 
 # SSH 키
 *.pem
+
+# 이미지
+*.png
+*.jpg
+*.jpeg
+*.gif
