@@ -588,11 +588,34 @@ def step2_entities(archive_df: pd.DataFrame, log, rebuild: bool = False) -> pd.D
         existing_ids = set(existing_df["ID"].unique())
         archive_ids = set(archive_df["ID"].unique())
         new_ids = archive_ids - existing_ids
-        if not new_ids:
+
+        # ── 제목 변경 감지: ID는 같지만 제목이 바뀐 경우 재추출 ──
+        changed_ids: set = set()
+        existing_titles = dict(zip(existing_df["ID"], existing_df["title"].astype(str)))
+        for _, row in archive_df.iterrows():
+            aid = row["ID"]
+            if aid in existing_ids:
+                archive_title = str(row.get("title", "")).strip()
+                old_title = existing_titles.get(aid, "").strip()
+                if archive_title != old_title:
+                    changed_ids.add(aid)
+        if changed_ids:
+            log.info(f"제목 변경 감지: {len(changed_ids)}건 → 재추출 대상")
+            # 변경된 ID의 기존 엔티티 제거 (새로 추출한 것으로 대체)
+            existing_df = existing_df[~existing_df["ID"].isin(changed_ids)].copy()
+
+        # ── 고아 ID 제거: 아카이브에 없는 기존 엔티티 ──
+        orphaned_ids = existing_ids - archive_ids
+        if orphaned_ids:
+            log.info(f"고아 ID 제거: {len(orphaned_ids)}건 (아카이브에 없는 ID)")
+            existing_df = existing_df[~existing_df["ID"].isin(orphaned_ids)].copy()
+
+        ids_to_process = new_ids | changed_ids
+        if not ids_to_process:
             log.info("새로 처리할 데이터 없음")
             return existing_df
-        to_process = archive_df[archive_df["ID"].isin(new_ids)].copy()
-        log.info(f"기존: {len(existing_ids)}건 | 신규: {len(new_ids)}건")
+        to_process = archive_df[archive_df["ID"].isin(ids_to_process)].copy()
+        log.info(f"기존: {len(existing_ids)}건 | 신규: {len(new_ids)}건 | 변경: {len(changed_ids)}건 | 고아제거: {len(orphaned_ids)}건")
 
     log.info(f"엔티티 추출 대상: {len(to_process)}건")
 
