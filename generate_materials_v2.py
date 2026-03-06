@@ -525,12 +525,19 @@ a {
 a:hover {
     text-decoration: underline;
 }
-ul, ol {
+ul {
     margin: 10px 0;
     padding-left: 25px;
+    list-style-type: disc;
+}
+ol {
+    margin: 10px 0;
+    padding-left: 25px;
+    list-style-type: decimal;
 }
 li {
     margin: 5px 0;
+    display: list-item;
 }
 p {
     margin: 8px 0;
