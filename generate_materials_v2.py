@@ -459,7 +459,7 @@ body {
     padding: 0 20px;
     line-height: 1.7;
     color: #222;
-    background: #fdad00;
+    background: #fdfdfd;
 }
 h2 {
     font-size: 20px;
@@ -525,19 +525,12 @@ a {
 a:hover {
     text-decoration: underline;
 }
-ul {
+ul, ol {
     margin: 10px 0;
     padding-left: 25px;
-    list-style-type: disc;
-}
-ol {
-    margin: 10px 0;
-    padding-left: 25px;
-    list-style-type: decimal;
 }
 li {
     margin: 5px 0;
-    display: list-item;
 }
 p {
     margin: 8px 0;

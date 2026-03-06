@@ -1,6 +1,31 @@
 # 오픈클로 작업 현황 (2026-03-06)
 
-최종 업데이트: 2026-03-06 13:50
+최종 업데이트: 2026-03-06 15:45
+
+---
+
+## ⚠️ 커밋 보호 규칙 (pre-commit hook)
+
+이 저장소에는 **pre-commit hook**이 설치되어 있습니다.
+
+### 자동 커밋 가능 (허용)
+- `*.md` 파일 (MEMORY.md, OPENCLO_STATUS.md, IDENTITY.md 등)
+- `memory/*` 디렉토리
+
+### 자동 커밋 불가 (차단)
+- `*.py`, `*.sh`, `*.html`, `*.json`, `*.css`, `*.js`, `*.csv`
+- `data/`, `indexing/`, `search/`, `agent/`, `api/` 디렉토리
+
+차단된 파일을 커밋하려 하면 hook이 거부합니다.
+사람이 직접 커밋해야 할 때: `git commit --no-verify -m "메시지"`
+
+### hook 설치 방법
+```bash
+git config core.hooksPath .githooks
+```
+
+### 왜 이 규칙이 있는가
+2026-03-06 사고: generate_materials_v2.py의 CSS를 수정한 뒤 커밋 → EC2 daily update에서 pull → 불렛/링크 복원 순서가 꼬여 slownews.net 전체 데이터 깨짐. 코드 파일은 반드시 사람의 검토를 거쳐야 합니다.
 
 ---
 

@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# pre-commit hook: 코드/설정 파일 보호
+#
+# .md 파일과 memory/ 디렉토리만 자동 커밋 허용.
+# 그 외 코드(.py, .sh, .html 등)는 차단.
+# 사람이 직접 커밋: git commit --no-verify -m "메시지"
+
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACMR)
+
+if [ -z "$STAGED_FILES" ]; then
+  exit 0
+fi
+
+BLOCKED=""
+
+for file in $STAGED_FILES; do
+  case "$file" in
+    # ── 허용: 마크다운, 메모리 ──
+    *.md|memory/*|memory/**) continue ;;
+    # ── 그 외 전부 차단 ──
+    *) BLOCKED="$BLOCKED\n  ❌ $file" ;;
+  esac
+done
+
+if [ -n "$BLOCKED" ]; then
+  echo ""
+  echo "🚫 커밋 차단: 코드/설정 파일이 포함되어 있습니다."
+  echo ""
+  echo -e "$BLOCKED"
+  echo ""
+  echo "📝 .md 파일과 memory/ 만 자동 커밋 가능합니다."
+  echo "🔓 사람이 직접 커밋: git commit --no-verify -m \"메시지\""
+  echo ""
+  exit 1
+fi
+
+exit 0
