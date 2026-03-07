@@ -306,6 +306,7 @@ def build_index(
     openai_api_key: str,
     incremental: bool = True,
     recreate: bool = False,
+    refresh_days: int = 0,
 ):
     """CSV에서 벡터 인덱스를 구축합니다.
 
@@ -322,8 +323,9 @@ def build_index(
 
     existing_hashes = {}
     if incremental and not recreate:
-        # 최근 2일분 벡터 삭제 → 재임베딩 (당일 수정 반영)
-        store.delete_recent_points(days=2)
+        # refresh_days > 0이면 최근 N일분 벡터 삭제 → 재임베딩 (교정·교열 반영)
+        if refresh_days > 0:
+            store.delete_recent_points(days=refresh_days)
         print("Loading existing vector index (hashes)...")
         existing_hashes = store.get_existing_hashes()
         print(f"Existing points: {len(existing_hashes)}")

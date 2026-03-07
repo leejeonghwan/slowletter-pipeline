@@ -1,11 +1,12 @@
 """
 전체 인덱스 빌드 스크립트
-사용법: python build_all.py <solar_csv_path> [openai_api_key]
+사용법: python build_all.py <solar_csv_path> [openai_api_key] [--refresh-days N]
 
 1. SQLite 엔티티 DB 구축
 2. BM25 인덱스 구축
 3. (OpenAI 키 제공시) 벡터 인덱스 구축
 """
+import argparse
 import os
 import sys
 import time
@@ -20,13 +21,17 @@ from config import PROCESSED_DIR, SQLITE_DB, BM25_INDEX, VECTOR_INDEX_DIR, QDRAN
 
 
 def main():
-    if len(sys.argv) < 2:
-        print("사용법: python build_all.py <solar_entities_csv_path> [openai_api_key]")
-        print("예시:   python build_all.py data/raw/slowletter_solar_entities.csv sk-...")
-        sys.exit(1)
+    parser = argparse.ArgumentParser(description="전체 인덱스 빌드 스크립트")
+    parser.add_argument("csv_path", help="Solar 엔티티 CSV 경로")
+    parser.add_argument("openai_key", nargs="?", default=None, help="OpenAI API 키 (없으면 환경변수)")
+    parser.add_argument(
+        "--refresh-days", type=int, default=0,
+        help="벡터 인덱스: 최근 N일분 삭제 후 재임베딩 (0=삭제 없음)",
+    )
+    args = parser.parse_args()
 
-    csv_path = sys.argv[1]
-    openai_key = sys.argv[2] if len(sys.argv) > 2 else os.getenv("OPENAI_API_KEY", "")
+    csv_path = args.csv_path
+    openai_key = args.openai_key or os.getenv("OPENAI_API_KEY", "")
 
     # 디렉토리 생성
     PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
@@ -63,7 +68,7 @@ def main():
         from indexing.embedder import build_index
         # 기본은 증분 임베딩. 전체 재빌드가 필요하면 FULL_REBUILD_VECTOR=1로 실행.
         recreate = os.getenv("FULL_REBUILD_VECTOR", "0") == "1"
-        build_index(csv_path, QDRANT_URL, openai_key, incremental=True, recreate=recreate)
+        build_index(csv_path, QDRANT_URL, openai_key, incremental=True, recreate=recreate, refresh_days=args.refresh_days)
 
         print(f"완료: {time.time() - start:.1f}초")
     else:

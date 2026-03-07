@@ -547,7 +547,7 @@ def load_existing_entities(path: str) -> pd.DataFrame:
     return df
 
 
-def step2_entities(archive_df: pd.DataFrame, log, rebuild: bool = False) -> pd.DataFrame:
+def step2_entities(archive_df: pd.DataFrame, log, rebuild: bool = False, refresh_days: int = 0) -> pd.DataFrame:
     """Step 2: 엔티티 추출. rebuild=True이면 기존 결과 무시하고 전체 재추출."""
     log.info("=" * 50)
     log.info("STEP 2: 엔티티 추출 시작")
@@ -585,16 +585,17 @@ def step2_entities(archive_df: pd.DataFrame, log, rebuild: bool = False) -> pd.D
         to_process = archive_df.copy()
         log.info("기존 엔티티 결과 없음 → 전체 처리")
     elif not rebuild:
-        # ── 최근 2일분 삭제 → 재추출 (당일 수정 반영) ──
-        from datetime import timedelta
-        cutoff = (datetime.now() - timedelta(days=2)).strftime("%Y-%m-%d")
-        existing_df["_date_str"] = pd.to_datetime(existing_df["date"], errors="coerce").dt.strftime("%Y-%m-%d")
-        refresh_mask = existing_df["_date_str"] >= cutoff
-        refresh_count = refresh_mask.sum()
-        if refresh_count > 0:
-            log.info(f"최근 2일분 갱신: {refresh_count}건 삭제 → 재추출 예정 (cutoff: {cutoff})")
-            existing_df = existing_df[~refresh_mask].copy()
-        existing_df.drop(columns=["_date_str"], inplace=True, errors="ignore")
+        # ── 최근 N일분 삭제 → 재추출 (교정·교열 반영) ──
+        if refresh_days > 0:
+            from datetime import timedelta
+            cutoff = (datetime.now() - timedelta(days=refresh_days)).strftime("%Y-%m-%d")
+            existing_df["_date_str"] = pd.to_datetime(existing_df["date"], errors="coerce").dt.strftime("%Y-%m-%d")
+            refresh_mask = existing_df["_date_str"] >= cutoff
+            refresh_count = refresh_mask.sum()
+            if refresh_count > 0:
+                log.info(f"최근 {refresh_days}일분 갱신: {refresh_count}건 삭제 → 재추출 예정 (cutoff: {cutoff})")
+                existing_df = existing_df[~refresh_mask].copy()
+            existing_df.drop(columns=["_date_str"], inplace=True, errors="ignore")
 
         existing_ids = set(existing_df["ID"].unique())
         archive_ids = set(archive_df["ID"].unique())
@@ -727,6 +728,10 @@ def main():
         "--rebuild-entity", action="store_true",
         help="엔티티 전체 재추출 (기존 결과 무시, --skip-crawl과 함께 사용 권장)",
     )
+    parser.add_argument(
+        "--refresh-days", type=int, default=0,
+        help="최근 N일분 엔티티 삭제 후 재추출 (0=삭제 없이 순수 증분, 1=오늘분만 리프레시)",
+    )
     args = parser.parse_args()
 
     log = setup_logging()
@@ -752,7 +757,7 @@ def main():
     if args.skip_entity:
         log.info("엔티티 추출 건너뛰기 (--skip-entity)")
     else:
-        step2_entities(archive_df, log, rebuild=args.rebuild_entity)
+        step2_entities(archive_df, log, rebuild=args.rebuild_entity, refresh_days=args.refresh_days)
 
     elapsed = int(time.time() - start_time)
     log.info(f"✅ 파이프라인 완료 (소요: {elapsed}초)")
