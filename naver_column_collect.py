@@ -6,10 +6,15 @@ Collects columns from press main pages (not newspaper pages).
 Columns are published independently of newspaper date.
 
 Example:
-  python3 naver_column_collect.py
+  python3 naver_column_collect.py                # Recent (today + yesterday)
+  python3 naver_column_collect.py --today        # Today only (XX시간전)
+  python3 naver_column_collect.py --yesterday    # Yesterday only (1일전)
+  python3 naver_column_collect.py --all          # All columns
 
 Outputs (~/Downloads):
 - newspaper_full_press_view_column_YYYYMMDD_HHMM.csv
+- newspaper_full_press_view_column_today_YYYYMMDD_HHMM.csv
+- newspaper_full_press_view_column_yesterday_YYYYMMDD_HHMM.csv
 """
 
 import argparse
@@ -66,10 +71,17 @@ def extract_summary_2sent(text: str) -> str:
     return " ".join(sents[:2]) if sents else ""
 
 
-def get_column_links(press: str, code: str) -> List[Tuple[str, str, str]]:
+def get_column_links(press: str, code: str, time_filter: str = "recent") -> List[Tuple[str, str, str]]:
     """Return list of (title, url, time_text) from the press main page.
     
     Columns are shown in the "칼럼" section.
+    
+    Args:
+        time_filter: 
+            - "today": Only today's columns (XX시간전)
+            - "yesterday": Only yesterday's columns (1일전)
+            - "recent": Both today and yesterday (default)
+            - "all": All columns regardless of date
     """
     press_url = f"https://media.naver.com/press/{code}"
     
@@ -98,6 +110,24 @@ def get_column_links(press: str, code: str) -> List[Tuple[str, str, str]]:
         # Get time info
         time_div = li.find("div", class_="press_todaycolumn_time")
         time_text = norm(time_div.get_text()) if time_div else ""
+        
+        # Apply time filter
+        is_today = time_text and "시간전" in time_text and "일" not in time_text
+        is_yesterday = re.match(r'^1일\s*전$', time_text) if time_text else False
+        
+        if time_filter == "today":
+            # "XX시간전"만 (오늘 0시부터 현재)
+            if not is_today:
+                continue
+        elif time_filter == "yesterday":
+            # "1일전"만 (어제 전체)
+            if not is_yesterday:
+                continue
+        elif time_filter == "recent":
+            # "XX시간전" + "1일전" (최근 2일)
+            if not (is_today or is_yesterday):
+                continue
+        # time_filter == "all"이면 필터링 안 함
         
         # Validate URL pattern: /article/{code}/{id}
         if f"/article/{code}/" in href:
@@ -158,11 +188,32 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--sleep", type=float, default=REQUEST_DELAY)
     ap.add_argument("--max-per-press", type=int, default=20, help="Max columns per press")
+    ap.add_argument("--today", action="store_true", help="Only today's columns (XX시간전)")
+    ap.add_argument("--yesterday", action="store_true", help="Only yesterday's columns (1일전)")
+    ap.add_argument("--all", action="store_true", help="All columns regardless of date")
     args = ap.parse_args()
+    
+    # Determine time filter
+    if args.today:
+        time_filter = "today"
+    elif args.yesterday:
+        time_filter = "yesterday"
+    elif args.all:
+        time_filter = "all"
+    else:
+        time_filter = "recent"  # default: today + yesterday
     
     now = datetime.now()
     timestamp = now.strftime("%Y%m%d_%H%M")
     date_str = now.strftime("%Y%m%d")
+    
+    filter_desc = {
+        "today": "오늘 칼럼 (XX시간전)",
+        "yesterday": "어제 칼럼 (1일전)",
+        "recent": "최근 칼럼 (오늘+어제)",
+        "all": "전체 칼럼"
+    }
+    print(f"🔍 필터: {filter_desc.get(time_filter, time_filter)}")
     
     rows = []
     total_links = 0
@@ -172,7 +223,7 @@ def main():
         code = p["code"]
         
         try:
-            links = get_column_links(press, code)
+            links = get_column_links(press, code, time_filter=time_filter)
         except Exception as e:
             print(f"{press}({code}): ERROR - {e}")
             continue
@@ -208,7 +259,10 @@ def main():
     
     out_dir = os.path.expanduser("~/Downloads")
     os.makedirs(out_dir, exist_ok=True)
-    out_path = os.path.join(out_dir, f"newspaper_full_press_view_column_{timestamp}.csv")
+    
+    # Add filter suffix to filename
+    filter_suffix = f"_{time_filter}" if time_filter != "recent" else ""
+    out_path = os.path.join(out_dir, f"newspaper_full_press_view_column{filter_suffix}_{timestamp}.csv")
     
     pd.DataFrame(rows).to_csv(out_path, index=False, encoding="utf-8-sig")
     print(f"saved: {out_path} rows={len(rows)} raw_links={total_links}")
