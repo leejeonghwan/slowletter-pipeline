@@ -188,7 +188,8 @@ class VectorStore:
         if not self.collection_exists():
             return 0
 
-        cutoff = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
+        # days=1 → 오늘만, days=2 → 어제+오늘
+        cutoff = (datetime.now() - timedelta(days=max(days - 1, 0))).strftime("%Y-%m-%d")
 
         # date 필드가 "YYYY-MM-DD" 문자열이므로 >= cutoff 로 필터
         # Qdrant keyword 필터는 Range를 지원하지 않으므로 scroll + delete로 처리

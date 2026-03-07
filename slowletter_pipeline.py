@@ -588,7 +588,8 @@ def step2_entities(archive_df: pd.DataFrame, log, rebuild: bool = False, refresh
         # ── 최근 N일분 삭제 → 재추출 (교정·교열 반영) ──
         if refresh_days > 0:
             from datetime import timedelta
-            cutoff = (datetime.now() - timedelta(days=refresh_days)).strftime("%Y-%m-%d")
+            # refresh_days=1 → 오늘만, refresh_days=2 → 어제+오늘
+            cutoff = (datetime.now() - timedelta(days=refresh_days - 1)).strftime("%Y-%m-%d")
             existing_df["_date_str"] = pd.to_datetime(existing_df["date"], errors="coerce").dt.strftime("%Y-%m-%d")
             refresh_mask = existing_df["_date_str"] >= cutoff
             refresh_count = refresh_mask.sum()
